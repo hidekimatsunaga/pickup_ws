@@ -1,0 +1,31 @@
+running egg_info
+creating ../../build/serial_transciever/serial_transciever.egg-info
+writing ../../build/serial_transciever/serial_transciever.egg-info/PKG-INFO
+writing dependency_links to ../../build/serial_transciever/serial_transciever.egg-info/dependency_links.txt
+writing entry points to ../../build/serial_transciever/serial_transciever.egg-info/entry_points.txt
+writing requirements to ../../build/serial_transciever/serial_transciever.egg-info/requires.txt
+writing top-level names to ../../build/serial_transciever/serial_transciever.egg-info/top_level.txt
+writing manifest file '../../build/serial_transciever/serial_transciever.egg-info/SOURCES.txt'
+reading manifest file '../../build/serial_transciever/serial_transciever.egg-info/SOURCES.txt'
+writing manifest file '../../build/serial_transciever/serial_transciever.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/matsunaga-h/pickup_ws/build/serial_transciever/build
+creating /home/matsunaga-h/pickup_ws/build/serial_transciever/build/lib
+creating /home/matsunaga-h/pickup_ws/build/serial_transciever/build/lib/serial_transciever
+copying serial_transciever/__init__.py -> /home/matsunaga-h/pickup_ws/build/serial_transciever/build/lib/serial_transciever
+running install
+running install_lib
+creating /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever
+copying /home/matsunaga-h/pickup_ws/build/serial_transciever/build/lib/serial_transciever/__init__.py -> /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever
+byte-compiling /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever/__init__.py to __init__.cpython-310.pyc
+running install_data
+creating /home/matsunaga-h/pickup_ws/install/serial_transciever/share/ament_index
+creating /home/matsunaga-h/pickup_ws/install/serial_transciever/share/ament_index/resource_index
+creating /home/matsunaga-h/pickup_ws/install/serial_transciever/share/ament_index/resource_index/packages
+copying resource/serial_transciever -> /home/matsunaga-h/pickup_ws/install/serial_transciever/share/ament_index/resource_index/packages
+copying package.xml -> /home/matsunaga-h/pickup_ws/install/serial_transciever/share/serial_transciever
+running install_egg_info
+Copying ../../build/serial_transciever/serial_transciever.egg-info to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever-0.0.0-py3.10.egg-info
+running install_scripts
+writing list of installed files to '/home/matsunaga-h/pickup_ws/build/serial_transciever/install.log'

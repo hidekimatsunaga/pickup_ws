@@ -1,0 +1,5 @@
+[console_scripts]
+angle_serial_node = serial_transciever.angle_serial_node:main
+motor_angle_publisher = serial_transciever.motor_angle_publisher:main
+serial_node = serial_transciever.serial_node_test:main
+

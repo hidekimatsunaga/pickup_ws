@@ -1,0 +1,49 @@
+[0.408s] Invoking command in '/home/matsunaga-h/pickup_ws/src/yolo_ros/yolo_ros': AMENT_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs LD_LIBRARY_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/matsunaga-h/pickup_ws/build/yolo_ros/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages:/home/matsunaga-h/pickup_ws/install/yolo_msgs/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/yolo_ros build --build-base /home/matsunaga-h/pickup_ws/build/yolo_ros/build install --record /home/matsunaga-h/pickup_ws/build/yolo_ros/install.log --single-version-externally-managed install_data
+[0.567s] running egg_info
+[0.568s] creating ../../../build/yolo_ros/yolo_ros.egg-info
+[0.568s] writing ../../../build/yolo_ros/yolo_ros.egg-info/PKG-INFO
+[0.568s] writing dependency_links to ../../../build/yolo_ros/yolo_ros.egg-info/dependency_links.txt
+[0.568s] writing entry points to ../../../build/yolo_ros/yolo_ros.egg-info/entry_points.txt
+[0.568s] writing requirements to ../../../build/yolo_ros/yolo_ros.egg-info/requires.txt
+[0.568s] writing top-level names to ../../../build/yolo_ros/yolo_ros.egg-info/top_level.txt
+[0.568s] writing manifest file '../../../build/yolo_ros/yolo_ros.egg-info/SOURCES.txt'
+[0.569s] reading manifest file '../../../build/yolo_ros/yolo_ros.egg-info/SOURCES.txt'
+[0.569s] writing manifest file '../../../build/yolo_ros/yolo_ros.egg-info/SOURCES.txt'
+[0.570s] running build
+[0.570s] running build_py
+[0.570s] creating /home/matsunaga-h/pickup_ws/build/yolo_ros/build
+[0.570s] creating /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib
+[0.570s] creating /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros
+[0.570s] copying yolo_ros/tracking_node.py -> /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros
+[0.570s] copying yolo_ros/detect_3d_node.py -> /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros
+[0.570s] copying yolo_ros/__init__.py -> /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros
+[0.570s] copying yolo_ros/debug_node.py -> /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros
+[0.570s] copying yolo_ros/yolo_node.py -> /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros
+[0.570s] running install
+[0.570s] running install_lib
+[0.570s] creating /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros
+[0.570s] copying /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros/tracking_node.py -> /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros
+[0.571s] copying /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros/detect_3d_node.py -> /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros
+[0.571s] copying /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros/__init__.py -> /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros
+[0.571s] copying /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros/debug_node.py -> /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros
+[0.571s] copying /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros/yolo_node.py -> /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros
+[0.571s] byte-compiling /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros/tracking_node.py to tracking_node.cpython-310.pyc
+[0.572s] byte-compiling /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros/detect_3d_node.py to detect_3d_node.cpython-310.pyc
+[0.573s] byte-compiling /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros/__init__.py to __init__.cpython-310.pyc
+[0.573s] byte-compiling /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros/debug_node.py to debug_node.cpython-310.pyc
+[0.575s] byte-compiling /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros/yolo_node.py to yolo_node.cpython-310.pyc
+[0.576s] running install_data
+[0.576s] creating /home/matsunaga-h/pickup_ws/install/yolo_ros/share/ament_index
+[0.576s] creating /home/matsunaga-h/pickup_ws/install/yolo_ros/share/ament_index/resource_index
+[0.576s] creating /home/matsunaga-h/pickup_ws/install/yolo_ros/share/ament_index/resource_index/packages
+[0.577s] copying resource/yolo_ros -> /home/matsunaga-h/pickup_ws/install/yolo_ros/share/ament_index/resource_index/packages
+[0.577s] copying package.xml -> /home/matsunaga-h/pickup_ws/install/yolo_ros/share/yolo_ros
+[0.577s] running install_egg_info
+[0.577s] Copying ../../../build/yolo_ros/yolo_ros.egg-info to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros-0.0.0-py3.10.egg-info
+[0.578s] running install_scripts
+[0.591s] Installing debug_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.591s] Installing detect_3d_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.591s] Installing tracking_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.591s] Installing yolo_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.592s] writing list of installed files to '/home/matsunaga-h/pickup_ws/build/yolo_ros/install.log'
+[0.607s] Invoked command in '/home/matsunaga-h/pickup_ws/src/yolo_ros/yolo_ros' returned '0': AMENT_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs LD_LIBRARY_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/matsunaga-h/pickup_ws/build/yolo_ros/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages:/home/matsunaga-h/pickup_ws/install/yolo_msgs/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/yolo_ros build --build-base /home/matsunaga-h/pickup_ws/build/yolo_ros/build install --record /home/matsunaga-h/pickup_ws/build/yolo_ros/install.log --single-version-externally-managed install_data

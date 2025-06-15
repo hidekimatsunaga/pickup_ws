@@ -1,0 +1,23 @@
+[0.419s] Invoking command in '/home/matsunaga-h/pickup_ws/src/serial_transciever': PYTHONPATH=/home/matsunaga-h/pickup_ws/build/serial_transciever/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/serial_transciever build --build-base /home/matsunaga-h/pickup_ws/build/serial_transciever/build install --record /home/matsunaga-h/pickup_ws/build/serial_transciever/install.log --single-version-externally-managed install_data
+[0.574s] running egg_info
+[0.575s] writing ../../build/serial_transciever/serial_transciever.egg-info/PKG-INFO
+[0.575s] writing dependency_links to ../../build/serial_transciever/serial_transciever.egg-info/dependency_links.txt
+[0.575s] writing entry points to ../../build/serial_transciever/serial_transciever.egg-info/entry_points.txt
+[0.575s] writing requirements to ../../build/serial_transciever/serial_transciever.egg-info/requires.txt
+[0.575s] writing top-level names to ../../build/serial_transciever/serial_transciever.egg-info/top_level.txt
+[0.576s] reading manifest file '../../build/serial_transciever/serial_transciever.egg-info/SOURCES.txt'
+[0.577s] writing manifest file '../../build/serial_transciever/serial_transciever.egg-info/SOURCES.txt'
+[0.577s] running build
+[0.577s] running build_py
+[0.577s] running install
+[0.577s] running install_lib
+[0.578s] running install_data
+[0.578s] running install_egg_info
+[0.579s] removing '/home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever-0.0.0-py3.10.egg-info' (and everything under it)
+[0.579s] Copying ../../build/serial_transciever/serial_transciever.egg-info to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever-0.0.0-py3.10.egg-info
+[0.580s] running install_scripts
+[0.594s] Installing angle_serial_node script to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/serial_transciever
+[0.594s] Installing motor_angle_publisher script to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/serial_transciever
+[0.594s] Installing serial_node script to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/serial_transciever
+[0.594s] writing list of installed files to '/home/matsunaga-h/pickup_ws/build/serial_transciever/install.log'
+[0.611s] Invoked command in '/home/matsunaga-h/pickup_ws/src/serial_transciever' returned '0': PYTHONPATH=/home/matsunaga-h/pickup_ws/build/serial_transciever/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/serial_transciever build --build-base /home/matsunaga-h/pickup_ws/build/serial_transciever/build install --record /home/matsunaga-h/pickup_ws/build/serial_transciever/install.log --single-version-externally-managed install_data

@@ -1,0 +1,31 @@
+running egg_info
+creating ../../build/vacuum_switch/vacuum_switch.egg-info
+writing ../../build/vacuum_switch/vacuum_switch.egg-info/PKG-INFO
+writing dependency_links to ../../build/vacuum_switch/vacuum_switch.egg-info/dependency_links.txt
+writing entry points to ../../build/vacuum_switch/vacuum_switch.egg-info/entry_points.txt
+writing requirements to ../../build/vacuum_switch/vacuum_switch.egg-info/requires.txt
+writing top-level names to ../../build/vacuum_switch/vacuum_switch.egg-info/top_level.txt
+writing manifest file '../../build/vacuum_switch/vacuum_switch.egg-info/SOURCES.txt'
+reading manifest file '../../build/vacuum_switch/vacuum_switch.egg-info/SOURCES.txt'
+writing manifest file '../../build/vacuum_switch/vacuum_switch.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/matsunaga-h/pickup_ws/build/vacuum_switch/build
+creating /home/matsunaga-h/pickup_ws/build/vacuum_switch/build/lib
+creating /home/matsunaga-h/pickup_ws/build/vacuum_switch/build/lib/vacuum_switch
+copying vacuum_switch/__init__.py -> /home/matsunaga-h/pickup_ws/build/vacuum_switch/build/lib/vacuum_switch
+running install
+running install_lib
+creating /home/matsunaga-h/pickup_ws/install/vacuum_switch/lib/python3.10/site-packages/vacuum_switch
+copying /home/matsunaga-h/pickup_ws/build/vacuum_switch/build/lib/vacuum_switch/__init__.py -> /home/matsunaga-h/pickup_ws/install/vacuum_switch/lib/python3.10/site-packages/vacuum_switch
+byte-compiling /home/matsunaga-h/pickup_ws/install/vacuum_switch/lib/python3.10/site-packages/vacuum_switch/__init__.py to __init__.cpython-310.pyc
+running install_data
+creating /home/matsunaga-h/pickup_ws/install/vacuum_switch/share/ament_index
+creating /home/matsunaga-h/pickup_ws/install/vacuum_switch/share/ament_index/resource_index
+creating /home/matsunaga-h/pickup_ws/install/vacuum_switch/share/ament_index/resource_index/packages
+copying resource/vacuum_switch -> /home/matsunaga-h/pickup_ws/install/vacuum_switch/share/ament_index/resource_index/packages
+copying package.xml -> /home/matsunaga-h/pickup_ws/install/vacuum_switch/share/vacuum_switch
+running install_egg_info
+Copying ../../build/vacuum_switch/vacuum_switch.egg-info to /home/matsunaga-h/pickup_ws/install/vacuum_switch/lib/python3.10/site-packages/vacuum_switch-0.0.0-py3.10.egg-info
+running install_scripts
+writing list of installed files to '/home/matsunaga-h/pickup_ws/build/vacuum_switch/install.log'

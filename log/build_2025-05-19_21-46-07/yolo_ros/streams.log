@@ -1,0 +1,28 @@
+[0.487s] Invoking command in '/home/matsunaga-h/pickup_ws/src/yolo_ros/yolo_ros': AMENT_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs LD_LIBRARY_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/matsunaga-h/pickup_ws/build/yolo_ros/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages:/home/matsunaga-h/pickup_ws/install/yolo_msgs/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/yolo_ros build --build-base /home/matsunaga-h/pickup_ws/build/yolo_ros/build install --record /home/matsunaga-h/pickup_ws/build/yolo_ros/install.log --single-version-externally-managed install_data
+[0.654s] running egg_info
+[0.654s] writing ../../../build/yolo_ros/yolo_ros.egg-info/PKG-INFO
+[0.654s] writing dependency_links to ../../../build/yolo_ros/yolo_ros.egg-info/dependency_links.txt
+[0.654s] writing entry points to ../../../build/yolo_ros/yolo_ros.egg-info/entry_points.txt
+[0.655s] writing requirements to ../../../build/yolo_ros/yolo_ros.egg-info/requires.txt
+[0.655s] writing top-level names to ../../../build/yolo_ros/yolo_ros.egg-info/top_level.txt
+[0.656s] reading manifest file '../../../build/yolo_ros/yolo_ros.egg-info/SOURCES.txt'
+[0.656s] writing manifest file '../../../build/yolo_ros/yolo_ros.egg-info/SOURCES.txt'
+[0.656s] running build
+[0.656s] running build_py
+[0.657s] copying yolo_ros/test.py -> /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros
+[0.657s] running install
+[0.657s] running install_lib
+[0.657s] copying /home/matsunaga-h/pickup_ws/build/yolo_ros/build/lib/yolo_ros/test.py -> /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros
+[0.658s] byte-compiling /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros/test.py to test.cpython-310.pyc
+[0.659s] running install_data
+[0.659s] running install_egg_info
+[0.660s] removing '/home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros-0.0.0-py3.10.egg-info' (and everything under it)
+[0.660s] Copying ../../../build/yolo_ros/yolo_ros.egg-info to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages/yolo_ros-0.0.0-py3.10.egg-info
+[0.660s] running install_scripts
+[0.675s] Installing debug_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.675s] Installing detect_3d_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.675s] Installing tracking_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.675s] Installing yolo_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.675s] Installing yolodetection_node script to /home/matsunaga-h/pickup_ws/install/yolo_ros/lib/yolo_ros
+[0.675s] writing list of installed files to '/home/matsunaga-h/pickup_ws/build/yolo_ros/install.log'
+[0.694s] Invoked command in '/home/matsunaga-h/pickup_ws/src/yolo_ros/yolo_ros' returned '0': AMENT_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs LD_LIBRARY_PATH=/home/matsunaga-h/pickup_ws/install/yolo_msgs/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/matsunaga-h/pickup_ws/build/yolo_ros/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/matsunaga-h/pickup_ws/install/yolo_ros/lib/python3.10/site-packages:/home/matsunaga-h/pickup_ws/install/yolo_msgs/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/yolo_ros build --build-base /home/matsunaga-h/pickup_ws/build/yolo_ros/build install --record /home/matsunaga-h/pickup_ws/build/yolo_ros/install.log --single-version-externally-managed install_data

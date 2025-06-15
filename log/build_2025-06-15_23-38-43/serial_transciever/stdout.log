@@ -1,0 +1,23 @@
+running egg_info
+writing ../../build/serial_transciever/serial_transciever.egg-info/PKG-INFO
+writing dependency_links to ../../build/serial_transciever/serial_transciever.egg-info/dependency_links.txt
+writing entry points to ../../build/serial_transciever/serial_transciever.egg-info/entry_points.txt
+writing requirements to ../../build/serial_transciever/serial_transciever.egg-info/requires.txt
+writing top-level names to ../../build/serial_transciever/serial_transciever.egg-info/top_level.txt
+reading manifest file '../../build/serial_transciever/serial_transciever.egg-info/SOURCES.txt'
+writing manifest file '../../build/serial_transciever/serial_transciever.egg-info/SOURCES.txt'
+running build
+running build_py
+copying serial_transciever/motor_angle_publisher.py -> /home/matsunaga-h/pickup_ws/build/serial_transciever/build/lib/serial_transciever
+running install
+running install_lib
+copying /home/matsunaga-h/pickup_ws/build/serial_transciever/build/lib/serial_transciever/motor_angle_publisher.py -> /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever
+byte-compiling /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever/motor_angle_publisher.py to motor_angle_publisher.cpython-310.pyc
+running install_data
+running install_egg_info
+removing '/home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever-0.0.0-py3.10.egg-info' (and everything under it)
+Copying ../../build/serial_transciever/serial_transciever.egg-info to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/python3.10/site-packages/serial_transciever-0.0.0-py3.10.egg-info
+running install_scripts
+Installing angle_serial_node = serial_transciever.angle_serial_node:mainmotor_angle_publisher script to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/serial_transciever
+Installing serial_node script to /home/matsunaga-h/pickup_ws/install/serial_transciever/lib/serial_transciever
+writing list of installed files to '/home/matsunaga-h/pickup_ws/build/serial_transciever/install.log'
