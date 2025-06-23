@@ -1,8 +1,0 @@
-[0.000000] (-) TimerEvent: {}
-[0.000267] (-) JobUnselected: {'identifier': 'air_pkg'}
-[0.000416] (-) JobUnselected: {'identifier': 'serial_transciever'}
-[0.000483] (-) JobUnselected: {'identifier': 'vacuum_switch'}
-[0.000507] (-) JobUnselected: {'identifier': 'yolo_bringup'}
-[0.000588] (-) JobUnselected: {'identifier': 'yolo_msgs'}
-[0.000610] (-) JobUnselected: {'identifier': 'yolo_ros'}
-[0.000631] (-) EventReactorShutdown: {}

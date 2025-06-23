@@ -10,7 +10,11 @@ setup.py
 ../../build/serial_transciever/serial_transciever.egg-info/zip-safe
 resource/serial_transciever
 serial_transciever/__init__.py
+serial_transciever/angle_arucopose_csv.py
+serial_transciever/angle_serial_manual_node.py
 serial_transciever/angle_serial_node.py
+serial_transciever/joy_angle_command_node.py
+serial_transciever/matpoltlib.py
 serial_transciever/motor_angle_publisher.py
 serial_transciever/serial_node_test.py
 test/test_copyright.py

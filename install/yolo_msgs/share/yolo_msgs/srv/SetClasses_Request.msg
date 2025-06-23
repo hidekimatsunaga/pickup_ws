@@ -1,1 +1,1 @@
-string[] classes
+/home/matsunaga-h/pickup_ws/build/yolo_msgs/rosidl_cmake/srv/SetClasses_Request.msg

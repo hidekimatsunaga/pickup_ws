@@ -1,1 +1,1 @@
-from yolo_msgs.srv._set_classes import SetClasses  # noqa: F401
+/home/matsunaga-h/pickup_ws/build/yolo_msgs/rosidl_generator_py/yolo_msgs/srv/__init__.py

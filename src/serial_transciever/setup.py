@@ -22,7 +22,10 @@ setup(
         'console_scripts': [
             'serial_node = serial_transciever.serial_node_test:main',
             'angle_serial_node = serial_transciever.angle_serial_node:main',
-            'motor_angle_publisher = serial_transciever.motor_angle_publisher:main'
+            'motor_angle_publisher = serial_transciever.motor_angle_publisher:main',
+            'angle_serial_manual_node = serial_transciever.angle_serial_manual_node:main',
+            'angle_arucopose_csv = serial_transciever.angle_arucopose_csv:main',
+            'joy_offset_command_node = serial_transciever.joy_angle_command_node:main',            
         ],
     },
 )

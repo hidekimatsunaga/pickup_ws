@@ -1,2 +1,1 @@
-source;share/yolo_bringup/environment/ament_prefix_path.sh
-source;share/yolo_bringup/environment/path.sh
+/home/matsunaga-h/pickup_ws/build/yolo_bringup/ament_cmake_environment_hooks/local_setup.dsv

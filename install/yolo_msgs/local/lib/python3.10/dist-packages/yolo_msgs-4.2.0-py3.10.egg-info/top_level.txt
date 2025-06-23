@@ -1,1 +1,1 @@
-yolo_msgs
+/home/matsunaga-h/pickup_ws/build/yolo_msgs/ament_cmake_python/yolo_msgs/yolo_msgs.egg-info/top_level.txt

@@ -1,1 +1,1 @@
-/home/matsunaga-h/pickup_ws/install/vacuum_switch:/home/matsunaga-h/pickup_ws/install/my_package:/home/matsunaga-h/pickup_ws/install/air_pkg:/opt/ros/humble
+/home/matsunaga-h/pickup_ws/install/yolo_bringup:/home/matsunaga-h/pickup_ws/install/yolo_ros:/home/matsunaga-h/pickup_ws/install/yolo_msgs:/home/matsunaga-h/pickup_ws/install/vacuum_switch:/home/matsunaga-h/pickup_ws/install/serial_transciever:/home/matsunaga-h/pickup_ws/install/my_package:/home/matsunaga-h/pickup_ws/install/air_pkg:/opt/ros/humble
