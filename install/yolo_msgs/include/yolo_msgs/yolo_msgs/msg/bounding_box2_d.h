@@ -1,1 +1,0 @@
-/home/matsunaga-h/pickup_ws/build/yolo_msgs/rosidl_generator_c/yolo_msgs/msg/bounding_box2_d.h

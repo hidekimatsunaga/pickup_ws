@@ -1,4 +1,0 @@
-[console_scripts]
-arduino_reader = air_pkg.arduino_reader:main
-hello_node = air_pkg.hello_node:main
-

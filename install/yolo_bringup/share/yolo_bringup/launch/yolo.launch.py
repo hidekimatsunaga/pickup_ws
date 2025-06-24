@@ -1,1 +1,0 @@
-/home/matsunaga-h/pickup_ws/src/yolo_ros/yolo_bringup/launch/yolo.launch.py

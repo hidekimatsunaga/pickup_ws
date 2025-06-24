@@ -1,9 +1,0 @@
-source;share/vacuum_switch/hook/pythonpath.ps1
-source;share/vacuum_switch/hook/pythonpath.dsv
-source;share/vacuum_switch/hook/pythonpath.sh
-source;share/vacuum_switch/hook/ament_prefix_path.ps1
-source;share/vacuum_switch/hook/ament_prefix_path.dsv
-source;share/vacuum_switch/hook/ament_prefix_path.sh
-source;../../build/vacuum_switch/share/vacuum_switch/hook/pythonpath_develop.ps1
-source;../../build/vacuum_switch/share/vacuum_switch/hook/pythonpath_develop.dsv
-source;../../build/vacuum_switch/share/vacuum_switch/hook/pythonpath_develop.sh

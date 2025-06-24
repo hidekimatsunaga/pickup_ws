@@ -1,1 +1,0 @@
-/home/matsunaga-h/pickup_ws/build/yolo_msgs/rosidl_typesupport_introspection_c/yolo_msgs/msg/detail/point2_d__rosidl_typesupport_introspection_c.h

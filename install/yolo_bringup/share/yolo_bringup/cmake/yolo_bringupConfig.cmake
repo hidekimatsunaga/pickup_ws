@@ -1,1 +1,0 @@
-/home/matsunaga-h/pickup_ws/build/yolo_bringup/ament_cmake_core/yolo_bringupConfig.cmake

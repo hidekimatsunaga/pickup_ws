@@ -1,1 +1,0 @@
-/home/matsunaga-h/pickup_ws/build/yolo_msgs/rosidl_generator_py/yolo_msgs/_yolo_msgs_s.ep.rosidl_typesupport_introspection_c.c
