@@ -1,0 +1,20 @@
+services:
+  ros2_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ros2_dev_image
+    container_name: ros2_dev_container
+    stdin_open: true
+    tty: true
+    restart: no
+    network_mode: "host"
+    ipc: "host"
+    privileged: true
+    volumes:
+      - /dev:/dev
+      - ./pickup_ws:/root/pickup_ws  # ホストとコンテナでワークスペースを共有
+    working_dir: /root/pickup_ws
+    environment:
+      - ROS_DISTRO=humble
+    command: bash
