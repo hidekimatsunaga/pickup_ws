@@ -1,0 +1,238 @@
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float32
+import serial
+
+class DualMotorSerialNode(Node):
+    def __init__(self):
+        super().__init__('chokudo_cameraswing_air_serial_node')
+
+        # Publisher（常時配信）
+        self.angle1_pub = self.create_publisher(Float32, '/chokudomotor/angle', 10)
+        self.angle2_pub = self.create_publisher(Float32, '/cameraswingmotor/angle', 10)
+        self.pressure_pub = self.create_publisher(Float32, '/sensor/pressure', 10)
+
+        # 指令値保持
+        self.angle1_cmd = 0.0
+        self.angle2_cmd = 72.86
+        self.prev_angle1_cmd = None
+        self.prev_angle2_cmd = None
+
+        # 個別にサブスクライブ
+        self.sub1 = self.create_subscription(
+            Float32,
+            '/chokudomotor/target_angle',
+            self.chokudo_callback,
+            10
+        )
+        self.sub2 = self.create_subscription(
+            Float32,
+            '/cameraswingmotor/target_angle',
+            self.swing_callback,
+            10
+        )
+
+        # Serial接続
+        try:
+            self.ser = serial.Serial(
+                '/dev/serial/by-id/usb-ROBOTIS_OpenRB-150_183098125055344E312E3120FF092507-if00',
+                115200,
+                timeout=1
+            )
+            self.get_logger().info('Serial connection established.')
+        except serial.SerialException:
+            self.get_logger().error('Failed to open serial port.')
+            self.ser = None
+
+        # 常時read（10Hz）
+        self.timer = self.create_timer(0.1, self.read_motor_data)
+
+    def chokudo_callback(self, msg):
+        self.angle1_cmd = msg.data
+        self.send_angles()
+
+    def swing_callback(self, msg):
+        self.angle2_cmd = msg.data
+        self.send_angles()
+
+    # def send_angles(self):
+    #     if self.ser and self.ser.is_open:
+    #         data_str = f"{self.angle1_cmd:.2f},{self.angle2_cmd:.2f}\n"
+    #         self.ser.write(data_str.encode('utf-8'))
+    #         self.get_logger().info(f'Sent: {data_str.strip()}')
+    #     else:
+    #         self.get_logger().warn('Serial port not open.')
+    def send_angles(self):
+        if self.ser and self.ser.is_open:
+            # 同じ値を連続送信しないように判定
+            if (self.prev_angle1_cmd == self.angle1_cmd and
+                self.prev_angle2_cmd == self.angle2_cmd):
+                return  # 指令が変わっていなければ送らない
+
+            # 送信処理
+            data_str = f"{self.angle1_cmd:.2f},{self.angle2_cmd:.2f}\n"
+            self.ser.write(data_str.encode('utf-8'))
+            self.get_logger().info(f'Sent: {data_str.strip()}')
+
+            # 更新
+            self.prev_angle1_cmd = self.angle1_cmd
+            self.prev_angle2_cmd = self.angle2_cmd
+        else:
+            self.get_logger().warn('Serial port not open.')
+
+    def read_motor_data(self):
+        if self.ser and self.ser.is_open:
+            try:
+                self.ser.write(b'read\n')
+                line = self.ser.readline().decode('utf-8').strip()
+
+                if line:
+                    parts = line.split(',')
+                    if len(parts) == 3:
+                        angle1 = float(parts[0])
+                        angle2 = float(parts[1])
+                        pressure = float(parts[2])
+
+                        msg1 = Float32(); msg1.data = angle1
+                        msg2 = Float32(); msg2.data = angle2
+                        msg3 = Float32(); msg3.data = pressure
+                        self.angle1_pub.publish(msg1)
+                        self.angle2_pub.publish(msg2)
+                        self.pressure_pub.publish(msg3)
+
+                        self.get_logger().info(
+                            f"Recv -> angle1: {angle1:.2f}, angle2: {angle2:.2f}, pressure: {pressure:.2f}"
+                        )
+                    else:
+                        self.get_logger().warn(f'Invalid response: {line}')
+            except Exception as e:
+                self.get_logger().error(f'Serial read error: {e}')
+        else:
+            self.get_logger().warn('Serial port not open.')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = DualMotorSerialNode()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        node.get_logger().info('Shutting down')
+    finally:
+        if node.ser and node.ser.is_open:
+            node.ser.close()
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+
+# import rclpy
+# from rclpy.node import Node
+# from std_msgs.msg import Float32, Float32MultiArray
+# import serial
+# import struct
+# import threading
+# import time
+
+# class DualMotorSerialNode(Node):
+#     def __init__(self):
+#         super().__init__('dual_motor_serial_node')
+
+#         # Publishers
+#         self.angle1_pub = self.create_publisher(Float32, '/chokudomotor/angle', 10)
+#         self.angle2_pub = self.create_publisher(Float32, '/cameraswingmotor/angle', 10)
+#         self.pressure_pub = self.create_publisher(Float32, '/sensor/pressure', 10)
+
+#         # Subscriber for angle commands
+#         self.subscription = self.create_subscription(
+#             Float32MultiArray,
+#             '/motor_angles',
+#             self.listener_callback,
+#             10
+#         )
+
+#         # Serialポート設定
+#         try:
+#             self.ser = serial.Serial(
+#                 '/dev/serial/by-id/usb-ROBOTIS_OpenRB-150_183098125055344E312E3120FF092507-if00',
+#                 115200,
+#                 timeout=0.01
+#             )
+#             self.get_logger().info('Serial connection established.')
+#         except serial.SerialException:
+#             self.get_logger().error('Failed to open serial port.')
+#             self.ser = None
+
+#         # 受信スレッド開始
+#         self.running = True
+#         self.recv_thread = threading.Thread(target=self.read_loop)
+#         self.recv_thread.start()
+
+#     def listener_callback(self, msg):
+#         if self.ser and self.ser.is_open and len(msg.data) >= 2:
+#             data = struct.pack('ff', msg.data[0], msg.data[1])
+#             self.ser.write(data)
+#             self.get_logger().info(f'Sent angles: {msg.data[0]:.2f}, {msg.data[1]:.2f}')
+
+#     def read_loop(self):
+#         buffer = bytearray()
+
+#         while self.running:
+#             try:
+#                 # データ1バイトずつ読む
+#                 byte = self.ser.read(1)
+#                 if not byte:
+#                     continue
+#                 buffer += byte
+
+#                 # 最低14バイトないと処理しない
+#                 while len(buffer) >= 14:
+#                     # ヘッダ確認（同期用）
+#                     if buffer[0] == 0xAA and buffer[1] == 0x55:
+#                         payload = buffer[2:14]
+#                         if len(payload) == 12:
+#                             angle1, angle2, pressure = struct.unpack('fff', payload)
+
+#                             # publish
+#                             msg1 = Float32(); msg1.data = angle1
+#                             msg2 = Float32(); msg2.data = angle2
+#                             msg3 = Float32(); msg3.data = pressure
+#                             self.angle1_pub.publish(msg1)
+#                             self.angle2_pub.publish(msg2)
+#                             self.pressure_pub.publish(msg3)
+
+#                             self.get_logger().info(
+#                                 f"Recv -> angle1: {angle1:.2f}, angle2: {angle2:.2f}, pressure: {pressure:.2f}"
+#                             )
+
+#                             buffer = buffer[14:]  # 先頭14バイト消費
+#                         else:
+#                             break  # 足りないので待つ
+#                     else:
+#                         # ヘッダずれてたら1バイトスキップ
+#                         buffer.pop(0)
+
+#             except Exception as e:
+#                 self.get_logger().warn(f"Serial read error: {e}")
+#             time.sleep(0.001)
+
+#     def destroy_node(self):
+#         self.running = False
+#         self.recv_thread.join()
+#         if self.ser and self.ser.is_open:
+#             self.ser.close()
+#         super().destroy_node()
+
+# def main(args=None):
+#     rclpy.init(args=args)
+#     node = DualMotorSerialNode()
+#     try:
+#         rclpy.spin(node)
+#     except KeyboardInterrupt:
+#         node.get_logger().info("Shutting down")
+#     finally:
+#         node.destroy_node()
+#         rclpy.shutdown()
+
+# if __name__ == '__main__':
+#     main()
