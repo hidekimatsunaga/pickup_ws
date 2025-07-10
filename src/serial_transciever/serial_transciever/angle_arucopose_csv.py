@@ -2,18 +2,33 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32, Float32MultiArray
 from aruco_interfaces.msg._aruco_markers import ArucoMarkers  # 実際の定義に置き換えてください
 import csv
 import os
 from rclpy.time import Time
+import datetime
 
 class CSVLoggerNode(Node):
     def __init__(self):
         super().__init__('angle_arucopose_csv')
 
-        # 保存ファイルパス
-        self.filepath = os.path.expanduser("~/pickup_ws/angle_arucopose_csv/aruco_motor_log.csv")
+        # 保存先のディレクトリパス
+        dir_path = os.path.expanduser("~/pickup_ws/angle_arucopose_csv/")
+
+        # ディレクトリが存在しない場合に備えて作成
+        os.makedirs(dir_path, exist_ok=True)
+
+        # 現在の日時を取得し、"YYYYMMDD_HHMMSS"形式の文字列に変換
+        timestamp = datetime.datetime.now().strftime("%m%d_%H%M%S")
+
+        # ファイル名を作成 (例: aruco_motor_log_20250710_170600.csv)
+        filename = f"aruco_motor_log_{timestamp}.csv"
+
+        # 完全なファイルパスを生成
+        self.filepath = os.path.join(dir_path, filename)
+
+        # CSVファイルを初期化
         self.init_csv()
 
         # 最新データ
@@ -24,6 +39,12 @@ class CSVLoggerNode(Node):
             Float32MultiArray,
             '/motor_current_angles',
             self.angle_callback,
+            10
+        )
+        self.sub_chokudo_angle = self.create_subscription(
+            Float32,
+            '/chokudomotor/angle',
+            self.chokudo_angle_callback,
             10
         )
 
@@ -39,7 +60,7 @@ class CSVLoggerNode(Node):
         if not os.path.exists(self.filepath):
             with open(self.filepath, mode='w', newline='') as f:
                 writer = csv.writer(f)
-                header = ['timestamp'] + [f'motor{i+1}' for i in range(9)] + [
+                header = ['timestamp'] + [f'motor{i+1}' for i in range(10)] + [
                     'marker_id', 'x', 'y', 'z', 'qx', 'qy', 'qz', 'qw'
                 ]
                 writer.writerow(header)
@@ -50,6 +71,12 @@ class CSVLoggerNode(Node):
         else:
             self.get_logger().warn('Invalid motor angle length.')
 
+    def chokudo_angle_callback(self, msg):
+        if len(msg.data) == 1:
+            self.latest_chokudo_angles = msg.data
+        else:
+            self.get_logger().warn('Invalid chokudo motor angle length.')
+    
     def marker_callback(self, msg):
         if self.latest_angles is None:
             self.get_logger().warn('Motor angles not yet received.')
@@ -59,7 +86,7 @@ class CSVLoggerNode(Node):
         unix_time = Time.from_msg(timestamp).nanoseconds * 1e-9
 
         for marker_id, pose in zip(msg.marker_ids, msg.poses):
-            row = [unix_time] + self.latest_angles + [
+            row = [unix_time] + self.latest_angles + self.latest_chokudo_angles + [
                 marker_id,
                 pose.position.x,
                 pose.position.y,
