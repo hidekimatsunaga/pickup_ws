@@ -26,9 +26,18 @@ class OffsetCommandNode(Node):
             10
         )
 
+        # chokudo motor の現在角度
+        self.cameraswing_sub = self.create_subscription(
+            Float32,
+            '/cameraswingmotor/angle',
+            self.camera_swing_callback,
+            10
+        )
+
         # 指令用 publishers
         self.publisher = self.create_publisher(Float32MultiArray, '/motor_angles', 10)
         self.chokudo_pub = self.create_publisher(Float32, '/chokudomotor/target_angle', 10)
+        self.cameraswing_pub = self.create_publisher(Float32, '/cameraswingmotor/target_angle', 10)
 
         # キーボード入力スレッド
         thread = threading.Thread(target=self.keyboard_listener, daemon=True)
@@ -45,18 +54,28 @@ class OffsetCommandNode(Node):
         self.current_chokudo = msg.data
         self.get_logger().info(f'Chokudo angle updated: {self.current_chokudo:.2f} deg')
 
+    def camera_swing_callback(self, msg):
+        self.current_cameraswing = msg.data
+        self.get_logger().info(f'Cameraswing angle updated: {self.current_cameraswing:.2f} deg')
+
     def keyboard_listener(self):
         import sys
         while True:
             line = sys.stdin.readline().strip().upper()
+            #直動機構モーター
             if line == "CA+":
                 self.publish_chokudo_offset(+360.0)
             elif line == "CA-":
                 self.publish_chokudo_offset(-360.0)
             elif line == "CA":
-                self.publish_chokudo_offset(+1000.0)
+                self.publish_chokudo_offset(+4000.0)
             elif line == "CB":
-                self.publish_chokudo_offset(-1000.0)
+                self.publish_chokudo_offset(-4000.0)
+            #カメラスイングモーター
+            elif line == "D+":
+                self.publish_cameraswing_offset(+70.0)
+            elif line == "D-":
+                self.publish_cameraswing_offset(-70.0)
                                     
             elif len(line) >= 2 and line[0] in ['A', 'B'] and line[1:].isdigit():
                 motor_index = int(line[1:]) - 1
@@ -83,6 +102,13 @@ class OffsetCommandNode(Node):
         msg.data = target
         self.chokudo_pub.publish(msg)
         self.get_logger().info(f'Published to /chokudomotor/angle: {target:.2f} deg')
+    
+    def publish_cameraswing_offset(self, offset_deg):
+        target = self.current_cameraswing + offset_deg
+        msg = Float32()
+        msg.data = target
+        self.cameraswing_pub.publish(msg)
+        self.get_logger().info(f'Published to /cameraswingmotor/angle: {target:.2f} deg')
 
 def main(args=None):
     rclpy.init(args=args)

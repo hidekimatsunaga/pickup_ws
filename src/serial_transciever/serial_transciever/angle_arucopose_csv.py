@@ -72,21 +72,23 @@ class CSVLoggerNode(Node):
             self.get_logger().warn('Invalid motor angle length.')
 
     def chokudo_angle_callback(self, msg):
-        if len(msg.data) == 1:
-            self.latest_chokudo_angles = msg.data
-        else:
-            self.get_logger().warn('Invalid chokudo motor angle length.')
+        self.latest_chokudo_angles = msg.data
+        self.get_logger().info('chokudo motor angle updated: {:.2f} deg'.format(msg.data))
+
     
     def marker_callback(self, msg):
         if self.latest_angles is None:
             self.get_logger().warn('Motor angles not yet received.')
             return
-
+        if self.latest_chokudo_angles is None:
+            self.get_logger().warn('Chokudo Motor angles not yet received.')
+            return
+        
         timestamp = self.get_clock().now().to_msg()
         unix_time = Time.from_msg(timestamp).nanoseconds * 1e-9
 
         for marker_id, pose in zip(msg.marker_ids, msg.poses):
-            row = [unix_time] + self.latest_angles + self.latest_chokudo_angles + [
+            row = [unix_time] + self.latest_angles + [self.latest_chokudo_angles] + [
                 marker_id,
                 pose.position.x,
                 pose.position.y,
