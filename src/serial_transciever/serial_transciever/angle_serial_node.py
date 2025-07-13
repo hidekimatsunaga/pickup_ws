@@ -15,12 +15,12 @@ class AngleSerialNode(Node):
         )
 
         # Subscriber: 角度情報の受信
-        self.subscription = self.create_subscription(
-            Float32MultiArray,
-            '/motor_angles',
-            self.listener_callback,
-            10
-        )
+        qos = rclpy.qos.QoSProfile(depth=50, reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
+        self.subscription = self.create_subscription(Float32MultiArray,
+                                            '/motor_angles',
+                                            self.listener_callback,
+                                            qos
+    )
 
         # タイマー：0.2秒ごとに現在角度を取得
         self.timer = self.create_timer(0.2, self.read_motor_angles)

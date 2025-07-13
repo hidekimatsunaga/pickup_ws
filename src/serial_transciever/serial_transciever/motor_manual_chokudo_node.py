@@ -3,6 +3,7 @@ from rclpy.node import Node
 from std_msgs.msg import Float32, Float32MultiArray
 import threading
 
+
 class OffsetCommandNode(Node):
     def __init__(self):
         super().__init__('angle_serial_manual_node')
@@ -46,10 +47,10 @@ class OffsetCommandNode(Node):
     def current_angle_callback(self, msg):
         if len(msg.data) == 9:
             self.current_angles = list(msg.data)
-            self.get_logger().info(f'Current angles updated: {self.current_angles}')
+            formatted = ', '.join(f'{v:.2f}' for v in self.current_angles)
+            self.get_logger().info(f'Current angles updated: [{formatted}]')
         else:
             self.get_logger().warn(f'Invalid current_angles length: {len(msg.data)}')
-
     def chokudo_callback(self, msg):
         self.current_chokudo = msg.data
         self.get_logger().info(f'Chokudo angle updated: {self.current_chokudo:.2f} deg')
@@ -59,7 +60,7 @@ class OffsetCommandNode(Node):
         self.get_logger().info(f'Cameraswing angle updated: {self.current_cameraswing:.2f} deg')
 
     def keyboard_listener(self):
-        import sys
+        import sys, re          # ← 先頭で re を追加
         while True:
             line = sys.stdin.readline().strip().upper()
             #直動機構モーター
@@ -86,6 +87,17 @@ class OffsetCommandNode(Node):
                     self.get_logger().warn(f'Motor index out of range: {motor_index + 1}')
             else:
                 self.get_logger().warn(f'Invalid input format: {line}')
+            # 例: 3 180   → motor-3 を 180deg に設定
+            abs_match = re.match(r'^(\d+)\s+([+-]?\d+(?:\.\d*)?)$', line)
+            if abs_match:
+                motor_index = int(abs_match.group(1)) - 1
+                target_deg  = float(abs_match.group(2))
+                if 0 <= motor_index < 9:
+                    self.send_absolute_to_motor(motor_index, target_deg)
+                else:
+                    self.get_logger().warn(f'Motor index out of range: {motor_index + 1}')
+                continue   # 次のループへ            
+            
 
     def send_offset_to_motor(self, motor_index, offset_deg):
         new_angles = self.current_angles.copy()
@@ -95,6 +107,15 @@ class OffsetCommandNode(Node):
         self.publisher.publish(msg)
         self.get_logger().info(
             f'Sent command: motor {motor_index + 1} → {new_angles[motor_index]:.2f} deg')
+
+    def send_absolute_to_motor(self, motor_index, target_deg):
+        new_angles = self.current_angles.copy()
+        new_angles[motor_index] = target_deg
+        msg = Float32MultiArray()
+        msg.data = new_angles
+        self.publisher.publish(msg)
+        self.get_logger().info(
+            f'Sent command: motor {motor_index + 1} → {target_deg:.2f} deg (absolute)')
 
     def publish_chokudo_offset(self, offset_deg):
         target = self.current_chokudo + offset_deg

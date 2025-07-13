@@ -3,8 +3,6 @@
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/float32.hpp>
-
-
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -21,15 +19,25 @@ struct DataPoint {
 class NearestMotorPublisher : public rclcpp::Node {
 public:
   NearestMotorPublisher()
-  : Node("nearest_motor_publisher") {
-    load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0710_185439_cleaned_file.csv");
+  : Node("nearest_motor_publisher"),
+    air_value_(0.0)
+  {
+    this->declare_parameter<double>("air_threshold", -150.0);
+    this->get_parameter("air_threshold", air_threshold_);
+
+    load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0714_001835.csv");
 
     sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
       "/detected_depth_points", 10,
       std::bind(&NearestMotorPublisher::callback, this, std::placeholders::_1)
     );
 
-    pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angle", 10);
+    air_sub_ = create_subscription<std_msgs::msg::Float32>(
+      "/sensor/pressure", 10,
+      std::bind(&NearestMotorPublisher::airCallback, this, std::placeholders::_1));
+
+    auto qos = rclcpp::QoS(rclcpp::KeepLast(50)).reliable();
+    pub_ = create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", qos);
     pub_motor10_ = this->create_publisher<std_msgs::msg::Float32>("/chokudomotor/target_angle", 10);
   }
 
@@ -38,6 +46,11 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_;
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_;
   rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_motor10_;
+  rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr air_sub_;
+
+  double air_value_;
+  double air_threshold_;
+
 
   void load_csv(const std::string &filepath) {
     std::ifstream file(filepath);
@@ -80,40 +93,65 @@ private:
 
     RCLCPP_INFO(this->get_logger(), "Loaded %zu entries from CSV.", dataset_.size());
   }
+  void airCallback(const std_msgs::msg::Float32::SharedPtr msg)
+  {
+    air_value_ = msg->data;
+  }
 
   void callback(const geometry_msgs::msg::PointStamped::SharedPtr msg) {
     const auto &pt = msg->point;
     double x = pt.x;
     double y = pt.y;
     double z = pt.z;
+    /* しきい値超過なら停止 */
+    if (air_value_ <= air_threshold_) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                           "Air sensor %.3f exceeds threshold %.3f → STOP",
+                           air_value_, air_threshold_);
+
+      std_msgs::msg::Float32MultiArray zero_msg;
+      zero_msg.data.assign(9, 0.0f);
+      pub_->publish(zero_msg);
+
+      std_msgs::msg::Float32 zero10;
+      zero10.data = 0.0f;
+      pub_motor10_->publish(zero10);
+      return;  // ここで処理終了
+    }
 
     if (dataset_.empty()) return;
 
-    double min_dist = std::numeric_limits<double>::max();
+    // --- ここから置き換え ---
+    double min_dist   = std::numeric_limits<double>::max();
     const DataPoint* closest = nullptr;
+    int   final_index = -1;                     // 最終的に選ばれた行番号
 
-    for (const auto &dp : dataset_) {
+    for (size_t i = 0; i < dataset_.size(); ++i) {
+      const auto &dp = dataset_[i];
       double dist = std::sqrt(
-        std::pow(dp.x - x, 2) +
-        std::pow(dp.y - y, 2) +
-        std::pow(dp.z - z, 2)
+        std::pow(dp.x+0.2 - x, 2) +
+        std::pow(dp.y+0.2 - y, 2) +
+        std::pow(dp.z+0.2 - z, 2)
       );
       if (dist < min_dist) {
-        min_dist = dist;
-        closest = &dp;
-        int index = std::distance(dataset_.begin(), std::find_if(dataset_.begin(), dataset_.end(),
-          [&](const DataPoint& d) { return &d == closest; }));
-        RCLCPP_INFO(this->get_logger(), "Nearest row index: %d", index);
+        min_dist   = dist;
+        closest    = &dp;
+        final_index = static_cast<int>(i);      // 行番号を記録
       }
     }
 
     if (closest == nullptr) return;
 
+    // 検索が終わったあと 1 回だけ出力
+    RCLCPP_INFO(this->get_logger(), "Selected row index: %d", final_index);
+    
     std_msgs::msg::Float32MultiArray angle_msg;
     angle_msg.data.reserve(closest->motors.size());
     for (const auto &val : closest->motors) {
       angle_msg.data.push_back(static_cast<float>(val));
     }
+    pub_->publish(angle_msg);       
+    
     std_msgs::msg::Float32 motor10_msg;
     motor10_msg.data = closest->motor10;
     pub_motor10_->publish(motor10_msg);
@@ -121,6 +159,7 @@ private:
     std::stringstream ss;
     for (auto a : closest->motors) ss << a << " ";
     RCLCPP_INFO(this->get_logger(), "Published motor1-9: %s, motor10: %.2f", ss.str().c_str(), closest->motor10);
+
   }
 };
 

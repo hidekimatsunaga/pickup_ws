@@ -42,13 +42,57 @@
 # ax.legend()
 
 # plt.show()
+# import pandas as pd
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D
+
+# # CSV読み込み（ヘッダーなし、1行目スキップ）
+# df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0714_001835.csv', header=None, skiprows=1)
+
+# # 位置情報のみ抽出（x, y, z）
+# position = df.iloc[:, 12:15].astype(float)
+# position.columns = ['x', 'y', 'z']
+
+# # プロット
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+
+# # 点を描画
+# ax.scatter(position['x'], position['y'], position['z'], color='blue', s=10)
+
+# # ラベル
+# ax.set_xlabel('X')
+# ax.set_ylabel('Y')
+# ax.set_zlabel('Z')
+
+# # 原点に矢印（x, y, z軸）を描く
+# ax.quiver(0, 0, 0, 1, 0, 0, length=0.2, color='red', linewidth=2, normalize=True)
+# ax.quiver(0, 0, 0, 0, 1, 0, length=0.2, color='green', linewidth=2, normalize=True)
+# ax.quiver(0, 0, 0, 0, 0, 1, length=0.2, color='blue', linewidth=2, normalize=True)
+
+
+# # 原点に大きな点
+# ax.scatter(0, 0, 0, color='black', s=50, label='origin')
+
+# # 凡例
+# ax.legend()
+
+# plt.show()
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+# --- 正解の値をここに設定してください ---
+correct_x = -0.186
+correct_y = -0.058
+correct_z = 0.756
+# ------------------------------------
+
 # CSV読み込み（ヘッダーなし、1行目スキップ）
-df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0710_185439_cleaned_file.csv', header=None, skiprows=1)
+# ファイルパスはご自身の環境に合わせて修正してください。
+df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0714_001835.csv', header=None, skiprows=1)
 
 # 位置情報のみ抽出（x, y, z）
 position = df.iloc[:, 12:15].astype(float)
@@ -59,7 +103,11 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 # 点を描画
-ax.scatter(position['x'], position['y'], position['z'], color='blue', s=10)
+ax.scatter(position['x'], position['y'], position['z'], color='blue', s=10, label='Measured Data')
+
+# ★★★ 正解の値を強調してプロット ★★★
+ax.scatter(correct_x, correct_y, correct_z, color='purple', s=150, marker='*', label='Correct Value', depthshade=False)
+
 
 # ラベル
 ax.set_xlabel('X')
@@ -73,7 +121,7 @@ ax.quiver(0, 0, 0, 0, 0, 1, length=0.2, color='blue', linewidth=2, normalize=Tru
 
 
 # 原点に大きな点
-ax.scatter(0, 0, 0, color='black', s=50, label='origin')
+ax.scatter(0, 0, 0, color='black', s=50, label='Origin')
 
 # 凡例
 ax.legend()
