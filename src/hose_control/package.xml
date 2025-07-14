@@ -14,6 +14,8 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>eigen3_cmake_module</depend>   <!-- 追加 -->
+  <depend>eigen</depend> 
 
   <export>
     <build_type>ament_cmake</build_type>

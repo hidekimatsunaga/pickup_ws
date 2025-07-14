@@ -28,7 +28,7 @@ public:
     load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0714_001835.csv");
 
     sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
-      "/detected_depth_points", 10,
+      "/goal_point", 10,
       std::bind(&NearestMotorPublisher::callback, this, std::placeholders::_1)
     );
 

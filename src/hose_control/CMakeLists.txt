@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(Eigen3 REQUIRED) 
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -26,18 +27,26 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 add_executable(nearest_motor_publisher src/nearest_motor_publisher.cpp)
-
 ament_target_dependencies(
   nearest_motor_publisher
   rclcpp
   std_msgs
   geometry_msgs
 )
+# ─── feedback_goal_position_node ─────────────────
+add_executable(feedback_goal_position_node      # ★ add_executable を忘れずに
+  src/feedback_goal_position_node.cpp)                    #   ←ファイル名に合わせて変更
+
+ament_target_dependencies(feedback_goal_position_node
+  rclcpp std_msgs geometry_msgs)
+
+target_link_libraries(feedback_goal_position_node
+  Eigen3::Eigen)                                # Eigen をリンク
 
 install(TARGETS
   nearest_motor_publisher
+  feedback_goal_position_node
   DESTINATION lib/${PROJECT_NAME}
 )
-
 
 ament_package()
