@@ -1,0 +1,26 @@
+ros2 bag record \
+    /aruco/images \
+    /aruco/markers \
+    /aruco/poses \
+    /camera/camera/color/image_raw \
+    /camera/camera/aligned_depth_to_color/image_raw \
+    /camera/camera/color/camera_info \
+    /camera/camera/aligned_depth_to_color/camera_info \
+    /camera/color/camera_info \
+    /camera/color/image_raw \
+    /camera/depth/color/points \
+    /cameraswingmotor/angle \
+    /cameraswingmotor/target_angle \
+    /chokudomotor/angle \
+    /chokudomotor/target_angle \
+    /clicked_point \
+    /detected_depth_points \
+    /goal_pose \
+    /initialpose \
+    /motor_angles \
+    /motor_current_angles \
+    /parameter_events \
+    /rosout \
+    /sensor/pressure \
+    /tf \
+    /tf_static \

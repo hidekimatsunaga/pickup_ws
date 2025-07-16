@@ -1,0 +1,15 @@
+<launch>
+    <!-- Motor Driver-->
+    <include file="$(find-pkg-share om_modbus_master)/launch/om_modbus_master_launch.py">
+        <arg name="com" value="/dev/serial/by-id/usb-FTDI_USB-RS485_Cable_FT7E9M3C-if00-port0"/>
+        <!-- <arg name="com" value="/dev/ttyUSB0"/> -->
+        <arg name="topicID" value="0"/>
+        <arg name="baudrate" value="230400"/>
+        <arg name="updateRate" value="100"/>
+        <arg name="secondGen" value="1,2,3"/>
+        <arg name="globalID" value="10"/>
+        <arg name="axisNum" value="3"/>
+    </include>
+    <executable cmd="python3 /home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample/BLV_R/drive_motor.py" output="screen"/>
+    <!-- <executable cmd="python3 /home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample/BLV_R/ros2_motor_v2.py" output="screen"/> -->
+</launch>

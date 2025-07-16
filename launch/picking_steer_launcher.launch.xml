@@ -1,0 +1,28 @@
+<launch>
+    <!--URG Driver-->
+    <!-- <node pkg="urg_node" exec="urg_node_driver" name="urg_node" output="log" respawn="true">
+        <param name="serial_port" value="/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00"/>
+    </node>
+    <node pkg="tf2_ros" exec="static_transform_publisher" name="base_to_urg" args="0.15 0 0.1 0 0 0 base_link laser" /> -->
+
+    <!-- Motor Driver-->
+    <!-- <include file="$(find-pkg-share om_modbus_master)/launch/om_modbus_master_launch.py">
+        <arg name="com" value="/dev/ttyUSB0"/>
+        <arg name="topicID" value="0"/>
+        <arg name="baudrate" value="230400"/>
+        <arg name="updateRate" value="100"/>
+        <arg name="secondGen" value="1,2,3"/>
+        <arg name="globalID" value="10"/>
+        <arg name="axisNum" value="3"/>
+    </include>
+    <executable cmd="python3 /home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample/BLV_R/drive_motor.py" output="screen"/> -->
+    <!-- <executable cmd="python3 /home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample/BLV_R/ros2_motor_v2.py" output="screen"/> -->
+    <node pkg="dynamixel_sdk_examples" exec="read_write_node" name="read_write_node" output="screen">
+    </node>
+    <node pkg="robot_motor2" exec="steer_motor_node" name="steer_motor_node" output="screen">
+    </node>
+    <node pkg="robot_motor2" exec="cmd_vel_to_motor_node" name="cmd_vel_to_motor_node" output="screen">
+    </node>
+    <node pkg="robot_motor2" exec="robot_odom_node" name="robot_odom_node" output="screen">
+    </node>
+</launch>

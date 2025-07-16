@@ -43,9 +43,20 @@ ament_target_dependencies(feedback_goal_position_node
 target_link_libraries(feedback_goal_position_node
   Eigen3::Eigen)                                # Eigen をリンク
 
+# ─── feedback_motor_publisher ─────────────────
+add_executable(feedback_motor_publisher      # ★ add_executable を忘れずに
+  src/feedback_motor_publisher.cpp)                    #   ←ファイル名に合わせて変更
+
+ament_target_dependencies(feedback_motor_publisher
+  rclcpp std_msgs geometry_msgs)
+
+target_link_libraries(feedback_motor_publisher
+  Eigen3::Eigen)                                # Eigen をリンク
+
 install(TARGETS
   nearest_motor_publisher
   feedback_goal_position_node
+  feedback_motor_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 

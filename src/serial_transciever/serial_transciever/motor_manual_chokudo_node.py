@@ -27,7 +27,7 @@ class OffsetCommandNode(Node):
             10
         )
 
-        # chokudo motor の現在角度
+        # cameraswing motor の現在角度
         self.cameraswing_sub = self.create_subscription(
             Float32,
             '/cameraswingmotor/angle',
@@ -64,18 +64,18 @@ class OffsetCommandNode(Node):
         while True:
             line = sys.stdin.readline().strip().upper()
             #直動機構モーター
-            if line == "CA+":
+            if line == "CA+": # 上がる
                 self.publish_chokudo_offset(+360.0)
-            elif line == "CA-":
+            elif line == "CA-": # 下がる
                 self.publish_chokudo_offset(-360.0)
-            elif line == "CA":
+            elif line == "CA": #上がる
                 self.publish_chokudo_offset(+4000.0)
-            elif line == "CB":
+            elif line == "CB": # 下がる
                 self.publish_chokudo_offset(-4000.0)
             #カメラスイングモーター
-            elif line == "D+":
+            elif line == "D+": #下げる
                 self.publish_cameraswing_offset(+70.0)
-            elif line == "D-":
+            elif line == "D-": #上げる
                 self.publish_cameraswing_offset(-70.0)
                                     
             elif len(line) >= 2 and line[0] in ['A', 'B'] and line[1:].isdigit():
