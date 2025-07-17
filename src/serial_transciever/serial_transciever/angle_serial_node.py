@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32MultiArray, Int8MultiArray
 import serial
 
 class AngleSerialNode(Node):
@@ -11,6 +11,11 @@ class AngleSerialNode(Node):
         self.angle_pub = self.create_publisher(
             Float32MultiArray,
             '/motor_current_angles',
+            10
+        )
+        self.switch_pub = self.create_publisher(
+            Int8MultiArray, 
+            '/switch', 
             10
         )
 
@@ -32,7 +37,7 @@ class AngleSerialNode(Node):
             self.get_logger().error('Failed to open serial port.')
             self.ser = None
 
-    def listener_callback(self, msg):
+    def listener_callback(self, msg: Float32MultiArray):
         if self.ser and self.ser.is_open:
             if len(msg.data) != 9:
                 self.get_logger().warn('Received data is not 9 elements.')
@@ -46,31 +51,36 @@ class AngleSerialNode(Node):
             self.get_logger().warn('Serial port is not open.')
         
     def read_motor_angles(self):
-        if self.ser and self.ser.is_open:
-            try:
-                self.ser.write(b'read\n')
-                lines = []
-                while self.ser.in_waiting:
-                    line = self.ser.readline().decode('utf-8').strip()
-                    if line and not line.upper().startswith('OK') and not line.startswith('//'):
-                        lines.append(line)
-
-                for response in lines:
-                    try:
-                        values = [float(x) for x in response.split(',') if x.strip() != '']
-                        if len(values) == 9:
-                            self.current_angles = values
-                            msg = Float32MultiArray()
-                            msg.data = values
-                            self.angle_pub.publish(msg)
-                            self.get_logger().info(f'Current angles: {values}')
-                            break  # 最初に正しく読めた行だけ処理
-                    except ValueError:
-                        continue  # float変換に失敗した行は無視
-            except Exception as e:
-                self.get_logger().error(f'Serial read error: {str(e)}')
-        else:
+        if not (self.ser and self.ser.is_open):
             self.get_logger().warn('Serial port not open')
+            return
+        try:
+            # ---------- ① 角度 ----------
+            self.ser.reset_input_buffer()          # 念のためバッファクリア
+            self.ser.write(b'read_pos\n')
+            angle_line = self.ser.readline().decode().strip()
+
+            if angle_line:
+                vals = [float(x) for x in angle_line.split(',') if x.strip()]
+                if len(vals) == 9:
+                    msg = Float32MultiArray(data=vals)
+                    self.angle_pub.publish(msg)
+                    self.get_logger().debug(f'Current angles: {vals}')
+
+            # ---------- ② スイッチ ----------
+            self.ser.reset_input_buffer()
+            self.ser.write(b'read_sw\n')
+            sw_line = self.ser.readline().decode().strip()
+
+            if sw_line:
+                sw_vals = [int(x) for x in sw_line.split(',') if x.strip()]
+                if len(sw_vals) == 9:
+                    msg_sw = Int8MultiArray(data=sw_vals)
+                    self.switch_pub.publish(msg_sw)
+                    self.get_logger().debug(f'Switch states: {sw_vals}')
+
+        except Exception as e:
+            self.get_logger().error(f'Serial read error: {e}')
 
 
 def main(args=None):

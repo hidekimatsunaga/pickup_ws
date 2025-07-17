@@ -28,6 +28,7 @@ setup(
             'joy_offset_command_node = serial_transciever.joy_angle_command_node:main',
             'chokudo_cameraswing_air_serial_node = serial_transciever.chokudo_cameraswing_air_serial_node:main',
             'motor_manual_chokudo_node = serial_transciever.motor_manual_chokudo_node:main',
+            'relay_controller = serial_transciever.relay_controller:main',
         ],
     },
 )

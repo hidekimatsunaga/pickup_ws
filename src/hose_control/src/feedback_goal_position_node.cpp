@@ -1,5 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
+#include <geometry_msgs/msg/pose_array.hpp> 
 #include <Eigen/Dense>                // ★ 追加
 #include <cmath>
 
@@ -21,13 +22,19 @@ public:
       });
 
     // 実測位置
-    sub_meas_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
-      "/aruco_pose", 10,
-      [this](const geometry_msgs::msg::PointStamped::SharedPtr msg)  // ★ 明示型
+    sub_meas_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+      "/aruco/poses",           // ★トピック名を合わせる
+      10,
+      [this](const geometry_msgs::msg::PoseArray::SharedPtr msg)
       {
-        meas_ = *msg;
-        meas_received_ = true;
-        feedback();
+          if (msg->poses.empty()) return;       // 未検出
+          // ここでは先頭のマーカーを使用（id で選ぶなら下で分岐）
+          meas_.header = msg->header;
+          meas_.point.x = msg->poses[0].position.x;
+          meas_.point.y = msg->poses[0].position.y;
+          meas_.point.z = msg->poses[0].position.z;
+          meas_received_ = true;
+          feedback();
       });
 
     pub_cmd_ = this->create_publisher<geometry_msgs::msg::PointStamped>(
@@ -42,9 +49,9 @@ private:
 
   /* ★ ここを追加：サブスクライバのメンバ宣言 */
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_goal_;
-  rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_meas_;
-
+  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_meas_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pub_cmd_;
+  
 
   /* ---------- 関数 ---------- */
   void publish_cmd() {
@@ -58,6 +65,13 @@ private:
     Vec3 g(goal_.point.x, goal_.point.y, goal_.point.z);
     Vec3 m(meas_.point.x, meas_.point.y, meas_.point.z);
     Vec3 e = g - m;
+
+    // ── 誤差を出力 ─────────────────────────────
+    RCLCPP_INFO(this->get_logger(),
+              "誤差: [x=%.4f  y=%.4f  z=%.4f]  |e|=%.4f",
+              e.x(), e.y(), e.z(), e.norm());
+    // ──────────────────────────────────────────
+
     if (e.norm() < tol_) return;               // 近ければ終了
 
     Vec3 next = g + K_ * e;                    // 目標補正
