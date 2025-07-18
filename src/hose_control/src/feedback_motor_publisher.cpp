@@ -25,7 +25,7 @@ public:
     this->declare_parameter<double>("air_threshold", -150.0);
     this->get_parameter("air_threshold", air_threshold_);
 
-    load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0714_001835.csv");
+    load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv");
 
     sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
       "/goal_point", 10,

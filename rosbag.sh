@@ -22,5 +22,7 @@ ros2 bag record \
     /parameter_events \
     /rosout \
     /sensor/pressure \
+    /goal_point \
+    /switch \
     /tf \
     /tf_static \

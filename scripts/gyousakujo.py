@@ -1,9 +1,9 @@
 import pandas as pd
 
 # 読み込むCSVファイルのパスを指定
-input_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0710_185439.csv'
+input_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109.csv'
 # 保存するCSVファイルのパスを指定
-output_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0710_185439_cleaned_file.csv'
+output_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv'
 
 # CSVファイルを読み込む
 try:
@@ -14,7 +14,7 @@ try:
     condition1 = (df['x'] != 0) | (df['y'] != 0)
     
     # 条件2: 'id'列が0か1の行のみを選択
-    condition2 = df['marker_id'].isin([0, 1])
+    condition2 = df['marker_id'].isin([0, 1, 2])
 
     # 2つの条件を両方とも満たす行だけを抽出
     df_cleaned = df[condition1 & condition2]

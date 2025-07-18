@@ -29,6 +29,7 @@ setup(
             'chokudo_cameraswing_air_serial_node = serial_transciever.chokudo_cameraswing_air_serial_node:main',
             'motor_manual_chokudo_node = serial_transciever.motor_manual_chokudo_node:main',
             'relay_controller = serial_transciever.relay_controller:main',
+            'allmotor_manual_switch_node = serial_transciever.allmotor_manual_switch_node:main',    
         ],
     },
 )

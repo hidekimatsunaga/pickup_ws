@@ -65,7 +65,7 @@ class AngleSerialNode(Node):
                 if len(vals) == 9:
                     msg = Float32MultiArray(data=vals)
                     self.angle_pub.publish(msg)
-                    self.get_logger().debug(f'Current angles: {vals}')
+                    self.get_logger().info(f'Current angles: {vals}')
 
             # ---------- ② スイッチ ----------
             self.ser.reset_input_buffer()
