@@ -53,10 +53,21 @@ ament_target_dependencies(feedback_motor_publisher
 target_link_libraries(feedback_motor_publisher
   Eigen3::Eigen)                                # Eigen をリンク
 
+# ─── feedback_m_kg_m ─────────────────
+add_executable(feedback_m_kg_m      # ★ add_executable を忘れずに
+  src/feedback_m_kg_m.cpp)                    #   ←ファイル名に合わせて変更
+
+ament_target_dependencies(feedback_m_kg_m
+  rclcpp std_msgs geometry_msgs)
+
+target_link_libraries(feedback_m_kg_m
+  Eigen3::Eigen)                                # Eigen をリンク
+
 install(TARGETS
   nearest_motor_publisher
   feedback_goal_position_node
   feedback_motor_publisher
+  feedback_m_kg_m
   DESTINATION lib/${PROJECT_NAME}
 )
 
