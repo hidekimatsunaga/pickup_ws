@@ -9,6 +9,7 @@
 #include <string>
 #include <limits>
 #include <cmath>
+#include "hose_control/motor_initial_position.hpp"
 
 struct DataPoint {
   double x, y, z;
