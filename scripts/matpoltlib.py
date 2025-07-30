@@ -85,14 +85,14 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 # --- 正解の値をここに設定してください ---
-correct_x = -0.186
-correct_y = -0.058
-correct_z = 0.756
+correct_x = -0.247
+correct_y = -0.115
+correct_z = 0.729
 # ------------------------------------
 
 # CSV読み込み（ヘッダーなし、1行目スキップ）
 # ファイルパスはご自身の環境に合わせて修正してください。
-df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0714_001835.csv', header=None, skiprows=1)
+df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv', header=None, skiprows=1)
 
 # 位置情報のみ抽出（x, y, z）
 position = df.iloc[:, 12:15].astype(float)

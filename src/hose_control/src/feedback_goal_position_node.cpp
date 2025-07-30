@@ -3,6 +3,7 @@
 #include <geometry_msgs/msg/pose_array.hpp> 
 #include <Eigen/Dense>                // ★ 追加
 #include <cmath>
+#include <std_msgs/msg/bool.hpp>
 
 class FeedbackGoalPositionNode : public rclcpp::Node {
 public:
@@ -10,6 +11,8 @@ public:
   : Node("feedback_goal_position_node"),
     K_(this->declare_parameter("gain", 1.0)),
     tol_(this->declare_parameter("tolerance", 0.01)),
+    auto_start_(this->declare_parameter("auto_start_grasp", true)),
+    arm_err_thresh_(this->declare_parameter("arm_error_threshold", 0.05)),
     meas_received_(false)             // ★ 初期化
   {
     // 目標位置
@@ -19,6 +22,7 @@ public:
       {
         goal_ = *msg;
         publish_cmd();         // 初回送信
+        start_sent_ = false;
       });
 
     // 実測位置
@@ -39,24 +43,40 @@ public:
 
     pub_cmd_ = this->create_publisher<geometry_msgs::msg::PointStamped>(
       "/goal_point", 10);
+    pub_start_ = this->create_publisher<std_msgs::msg::Bool>("/start_grasp", 10); // ★ 追加
+
   }
 
 private:
   /* ---------- メンバ ---------- */
   geometry_msgs::msg::PointStamped goal_, meas_, cmd_;
   double K_, tol_;
+  bool auto_start_;                // ★ 自動把持開始
+  double arm_err_thresh_;          // ★ 把持開始の誤差しき
   bool meas_received_;  // ★ 未受信ガード
+  bool start_sent_{false};         // ★ このゴールに対して/start_graspをもう出したか
 
   /* ★ ここを追加：サブスクライバのメンバ宣言 */
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_goal_;
   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_meas_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pub_cmd_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_start_; // ★ 把持開始の合図
   
 
   /* ---------- 関数 ---------- */
   void publish_cmd() {
     cmd_ = goal_;          // 初回は目標そのまま
     pub_cmd_->publish(cmd_);
+  }
+
+  // ★ 一度だけ /start_grasp を出す
+  void publish_start_grasp_once()
+  {
+    if (start_sent_ || !auto_start_) return;
+    std_msgs::msg::Bool b; b.data = true;
+    pub_start_->publish(b);
+    start_sent_ = true;
+    RCLCPP_INFO(this->get_logger(), "[start_grasp]=true published");
   }
 
   void feedback() {
@@ -71,6 +91,10 @@ private:
               "誤差: [x=%.4f  y=%.4f  z=%.4f]  |e|=%.4f",
               e.x(), e.y(), e.z(), e.norm());
     // ──────────────────────────────────────────
+    //ゴールに向かう必要がある　（十分離れている）ときに/start_graspを一度だけ出す
+    if (e.norm() > arm_err_thresh_) {
+      publish_start_grasp_once();  // ★ 一度だけ把持開始の合図
+    }
 
     if (e.norm() < tol_) return;               // 近ければ終了
 

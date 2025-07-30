@@ -1,74 +1,60 @@
 cmake_minimum_required(VERSION 3.8)
 project(hose_control)
 
+# ────────────────────────────────────────────────────────────────
+# 共通オプション
+# ────────────────────────────────────────────────────────────────
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
+# ────────────────────────────────────────────────────────────────
+# 依存パッケージ
+# ────────────────────────────────────────────────────────────────
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(Eigen3 REQUIRED) 
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(Eigen3 REQUIRED)
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
+# include/ ディレクトリを全ターゲットに公開（方法 A）
+include_directories(include)
+include_directories(${EIGEN3_INCLUDE_DIRS})
+
+# ────────────────────────────────────────────────────────────────
+# 実行ファイル
+# ────────────────────────────────────────────────────────────────
 add_executable(nearest_motor_publisher src/nearest_motor_publisher.cpp)
-ament_target_dependencies(
-  nearest_motor_publisher
-  rclcpp
-  std_msgs
-  geometry_msgs
-)
-# ─── feedback_goal_position_node ─────────────────
-add_executable(feedback_goal_position_node      # ★ add_executable を忘れずに
-  src/feedback_goal_position_node.cpp)                    #   ←ファイル名に合わせて変更
+ament_target_dependencies(nearest_motor_publisher
+  rclcpp std_msgs geometry_msgs)
 
+add_executable(feedback_goal_position_node src/feedback_goal_position_node.cpp)
 ament_target_dependencies(feedback_goal_position_node
-  rclcpp std_msgs geometry_msgs)
+  rclcpp std_msgs geometry_msgs Eigen3)
 
-target_link_libraries(feedback_goal_position_node
-  Eigen3::Eigen)                                # Eigen をリンク
-
-# ─── feedback_motor_publisher ─────────────────
-add_executable(feedback_motor_publisher      # ★ add_executable を忘れずに
-  src/feedback_motor_publisher.cpp)                    #   ←ファイル名に合わせて変更
-
+add_executable(feedback_motor_publisher src/feedback_motor_publisher.cpp)
 ament_target_dependencies(feedback_motor_publisher
-  rclcpp std_msgs geometry_msgs)
+  rclcpp std_msgs geometry_msgs Eigen3)
 
-target_link_libraries(feedback_motor_publisher
-  Eigen3::Eigen)                                # Eigen をリンク
-
-# ─── feedback_m_kg_m ─────────────────
-add_executable(feedback_m_kg_m      # ★ add_executable を忘れずに
-  src/feedback_m_kg_m.cpp)                    #   ←ファイル名に合わせて変更
-
+add_executable(feedback_m_kg_m src/feedback_m_kg_m.cpp)
 ament_target_dependencies(feedback_m_kg_m
-  rclcpp std_msgs geometry_msgs)
+  rclcpp std_msgs geometry_msgs Eigen3)
 
-target_link_libraries(feedback_m_kg_m
-  Eigen3::Eigen)                                # Eigen をリンク
+add_executable(flag_manager src/flag_manager.cpp)
+ament_target_dependencies(flag_manager
+  rclcpp std_msgs geometry_msgs Eigen3)
 
+# ────────────────────────────────────────────────────────────────
+# インストール設定
+# ────────────────────────────────────────────────────────────────
 install(TARGETS
   nearest_motor_publisher
   feedback_goal_position_node
   feedback_motor_publisher
   feedback_m_kg_m
-  DESTINATION lib/${PROJECT_NAME}
-)
+  flag_manager
+  DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY include/ DESTINATION include)
 
 ament_package()

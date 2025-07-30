@@ -110,13 +110,13 @@ private:
                            "Air sensor %.3f exceeds threshold %.3f → STOP",
                            air_value_, air_threshold_);
 
-      std_msgs::msg::Float32MultiArray zero_msg;
-      zero_msg.data.assign(9, 0.0f);
-      pub_->publish(zero_msg);
+      std_msgs::msg::Float32MultiArray stop_msg;
+      stop_msg.data = stop_angles_;
+      pub_->publish(stop_msg);
 
-      std_msgs::msg::Float32 zero10;
-      zero10.data = 0.0f;
-      pub_motor10_->publish(zero10);
+      std_msgs::msg::Float32 stop10;
+      stop10.data = stop_motor10_angle_;
+      pub_motor10_->publish(stop10);
       return;  // ここで処理終了
     }
 
