@@ -12,6 +12,7 @@ public:
   : Node("flag_manager")
   {
     tolerance_       = this->declare_parameter("tolerance", 1.0);     // deg
+    tolerance10_     = this->declare_parameter("tolerance10", 10.0);     // deg
     require_arm_     = this->declare_parameter("require_arm", true);  // /start_grasp が必要か
     min_on_interval_ = this->declare_parameter("min_on_interval", 0.5); // ONの連打抑制[s]
 
@@ -76,7 +77,7 @@ private:
       if (std::fabs(latest_9_.data[i] - stop_angles_[i]) > tolerance_) return;
     }
     // motor10 判定
-    if (std::fabs(latest_10_.data - stop_motor10_angle_) > tolerance_) return;
+    if (std::fabs(latest_10_.data - stop_motor10_angle_) > tolerance10_) return;
 
     // すべて到達したら OFF
     std_msgs::msg::Bool flag_msg;
@@ -114,6 +115,7 @@ private:
   }
   // ---------- メンバ ----------
   double tolerance_;
+  double tolerance10_;
   bool   require_arm_;
   double min_on_interval_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr flag_pub_;

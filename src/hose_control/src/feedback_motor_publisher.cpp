@@ -78,9 +78,9 @@ private:
       }
 
       DataPoint dp;
-      dp.x = std::stod(tokens[12]);
-      dp.y = std::stod(tokens[13]);
-      dp.z = std::stod(tokens[14]);
+      dp.x = std::stod(tokens[12]);//csvの12行目
+      dp.y = std::stod(tokens[13]);//csvの13行目
+      dp.z = std::stod(tokens[14]);//csvの14行目
 
       dp.motors.reserve(9);
       for (int i = 1; i <= 9; ++i) {
