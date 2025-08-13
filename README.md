@@ -15,3 +15,24 @@
 - cd pickup_ws
 - source install/setup.bash 
 - ros2 run serial_transciever joy_offset_command_node
+
+## motorの初期位置
+- 1 257
+- 2 265
+- 3 190
+- 4 91
+- 5 16
+- 6 15
+- 7 70
+- 8 87
+- 9 36
+
+- 1 30
+- 2 166
+- 3 81
+- 4 -209
+- 5 -215
+- 6 -262
+- 7 10
+- 8 -71
+- 9 -273

@@ -16,6 +16,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(aruco_interfaces REQUIRED)
 
 # include/ ディレクトリを全ターゲットに公開（方法 A）
 include_directories(include)
@@ -30,19 +31,19 @@ ament_target_dependencies(nearest_motor_publisher
 
 add_executable(feedback_goal_position_node src/feedback_goal_position_node.cpp)
 ament_target_dependencies(feedback_goal_position_node
-  rclcpp std_msgs geometry_msgs Eigen3)
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces)
 
 add_executable(feedback_motor_publisher src/feedback_motor_publisher.cpp)
 ament_target_dependencies(feedback_motor_publisher
-  rclcpp std_msgs geometry_msgs Eigen3)
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces)
 
 add_executable(feedback_m_kg_m src/feedback_m_kg_m.cpp)
 ament_target_dependencies(feedback_m_kg_m
-  rclcpp std_msgs geometry_msgs Eigen3)
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces)
 
 add_executable(flag_manager src/flag_manager.cpp)
 ament_target_dependencies(flag_manager
-  rclcpp std_msgs geometry_msgs Eigen3)
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces)
 
 # ────────────────────────────────────────────────────────────────
 # インストール設定

@@ -4,6 +4,8 @@
 #include <Eigen/Dense>                // ★ 追加
 #include <cmath>
 #include <std_msgs/msg/bool.hpp>
+#include <aruco_interfaces/msg/aruco_markers.hpp> // ★ 追加
+#include <array>
 
 class FeedbackGoalPositionNode : public rclcpp::Node {
 public:
@@ -26,19 +28,28 @@ public:
       });
 
     // 実測位置
-    sub_meas_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
-      "/aruco/poses",           // ★トピック名を合わせる
+    sub_meas_ = this->create_subscription<aruco_interfaces::msg::ArucoMarkers>(
+      "/aruco/markers",           // ★トピック名を合わせる
       10,
-      [this](const geometry_msgs::msg::PoseArray::SharedPtr msg)
+      [this](const aruco_interfaces::msg::ArucoMarkers::SharedPtr msg)
       {
-          if (msg->poses.empty()) return;       // 未検出
+        constexpr std::array<int64_t,3> ALLOWED = {0, 1, 2};
+
+        for(size_t i = 0; i < msg->marker_ids.size(); ++i){
+          int64_t id = msg->marker_ids[i];
+          if(std::find(ALLOWED.begin(), ALLOWED.end(), id) == ALLOWED.end())
+          continue;  // id が許可されていない場合はスキップ
+
+          if (i >= msg->poses.size()) return;       // 念の為の境界確認
           // ここでは先頭のマーカーを使用（id で選ぶなら下で分岐）
           meas_.header = msg->header;
-          meas_.point.x = msg->poses[0].position.x;
-          meas_.point.y = msg->poses[0].position.y;
-          meas_.point.z = msg->poses[0].position.z;
+          meas_.point.x = msg->poses[i].position.x;
+          meas_.point.y = msg->poses[i].position.y;
+          meas_.point.z = msg->poses[i].position.z;
           meas_received_ = true;
           feedback();
+          return;
+        } 
       });
 
     pub_cmd_ = this->create_publisher<geometry_msgs::msg::PointStamped>(
@@ -58,7 +69,7 @@ private:
 
   /* ★ ここを追加：サブスクライバのメンバ宣言 */
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_goal_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_meas_;
+  rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr sub_meas_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pub_cmd_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_start_; // ★ 把持開始の合図
   

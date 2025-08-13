@@ -16,6 +16,11 @@ def generate_launch_description():
         ),
         Node(
             package='hose_control',
+            executable='flag_manager',
+            name='flag_manager',
+        ),
+        Node(
+            package='hose_control',
             executable='feedback_goal_position_node',
             name='feedback_goal_position_node',
         ),
