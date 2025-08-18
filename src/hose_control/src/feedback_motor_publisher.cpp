@@ -10,6 +10,7 @@
 #include <limits>
 #include <cmath>
 #include "hose_control/motor_initial_position.hpp"
+#include "hose_control/motor_pickup_position.hpp"
 
 struct DataPoint {
   double x, y, z;
@@ -21,13 +22,27 @@ class FeedbackMotorPublisher : public rclcpp::Node {
 public:
   FeedbackMotorPublisher()
   : Node("feedback_motor_publisher"),
-    air_value_(0.0)
+    air_value_(0.0),
+    is_in_sequence_mode_(false), //シーケンス実行中かどうかのフラグ
+    sequence_step_(0) //シーケンスの現在のステップ
   {
     this->declare_parameter<double>("air_threshold", -150.0);
     this->get_parameter("air_threshold", air_threshold_);
 
     load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv");
+    
+    // ★ 修正点2: 型の違う2次元ベクトルの正しいコピー
+    sequence_data_.clear();
+    const auto& seq_from_header = motor_sequences::pickup_sequence;
+    for (const auto& row_float : seq_from_header) {
+      sequence_data_.emplace_back(row_float.begin(), row_float.end());
+    }
 
+    current_angles_sub_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
+      "/current_motor_angles", 10,
+      std::bind(&FeedbackMotorPublisher::currentAnglesCallback, this, std::placeholders::_1)
+    );
+    
     sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
       "/goal_point", 10,
       std::bind(&FeedbackMotorPublisher::callback, this, std::placeholders::_1)
@@ -48,8 +63,12 @@ private:
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_;
   rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_motor10_;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr air_sub_;
-
-  double air_value_;
+  rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr current_angles_sub_;
+  double air_value_;  
+  bool is_in_sequence_mode_;
+  int sequence_step_;
+  std::vector<std::vector<double>> sequence_data_; // シーケンスデータを保持する変数
+  std::vector<double> current_motor_angles_; // 最新のモーター角度を保持する変数
   double air_threshold_;
 
 
@@ -100,25 +119,25 @@ private:
   }
 
   void callback(const geometry_msgs::msg::PointStamped::SharedPtr msg) {
+        // --- ★ここから修正 ---
+    // シーケンス実行中は、新しい目標地点がきても無視する
+    if (is_in_sequence_mode_) {
+      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000, "In sequence mode, ignoring new goal point.");
+      return;
+    }
+
+    // しきい値超過ならシーケンスを開始
+    if (air_value_ <= air_threshold_) {
+      RCLCPP_WARN(get_logger(), "Air sensor threshold exceeded! Starting sequence.");
+      is_in_sequence_mode_ = true;
+      sequence_step_ = 0;
+      publishSequenceStep(); // シーケンスの最初のステップを実行
+      return; // シーケンスモードに入ったので、これ以降の最近傍探索は行わない
+    }
     const auto &pt = msg->point;
     double x = pt.x;
     double y = pt.y;
     double z = pt.z;
-    /* しきい値超過なら停止 */
-    if (air_value_ <= air_threshold_) {
-      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                           "Air sensor %.3f exceeds threshold %.3f → STOP",
-                           air_value_, air_threshold_);
-
-      std_msgs::msg::Float32MultiArray stop_msg;
-      stop_msg.data = stop_angles_;
-      pub_->publish(stop_msg);
-
-      std_msgs::msg::Float32 stop10;
-      stop10.data = stop_motor10_angle_;
-      pub_motor10_->publish(stop10);
-      return;  // ここで処理終了
-    }
 
     if (dataset_.empty()) return;
 
@@ -161,6 +180,64 @@ private:
     for (auto a : closest->motors) ss << a << " ";
     RCLCPP_INFO(this->get_logger(), "Published motor1-9: %s, motor10: %.2f", ss.str().c_str(), closest->motor10);
 
+  }
+// ★追加：モーターの現在角度を受け取ったときのコールバック関数
+  void currentAnglesCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+  {
+    // ★ 修正点3: 型の違うベクターの正しい代入
+    current_motor_angles_.assign(msg->data.begin(), msg->data.end());
+
+    // シーケンスモードでなければ何もしない
+    if (!is_in_sequence_mode_) {
+      return;
+    }
+
+    // 目標の角度（シーケンスの現在のステップ）を取得
+    const auto& target_angles = sequence_data_[sequence_step_];
+
+    // 現在の角度が目標に到達したかチェック
+    if (isCloseToTarget(target_angles, current_motor_angles_)) {
+      RCLCPP_INFO(this->get_logger(), "Sequence step %d reached.", sequence_step_);
+
+      // 次のステップに進める
+      sequence_step_++;
+
+      // もし全ステップが完了したら、シーケンスモードを終了
+      if (static_cast<size_t>(sequence_step_) >= sequence_data_.size()) {
+        RCLCPP_INFO(this->get_logger(), "Sequence finished.");
+        is_in_sequence_mode_ = false;
+        sequence_step_ = 0;
+        return;
+      }
+
+      // 次の目標角度をパブリッシュ
+      publishSequenceStep();
+    }
+  }
+
+  // ★追加：2つの角度リストが「ほぼ同じ」か判定するヘルパー関数
+  bool isCloseToTarget(const std::vector<double>& target, const std::vector<double>& current) {
+    if (target.size() != current.size()) {
+      return false;
+    }
+    double tolerance = 1.5; // 許容誤差（例: 1.5度）。モーターの性能に合わせて調整。
+    for (size_t i = 0; i < target.size(); ++i) {
+      if (std::abs(target[i] - current[i]) > tolerance) {
+        return false; // 1つでも許容誤差を超えていたらfalse
+      }
+    }
+    return true; // 全て許容誤差内ならtrue
+  }
+
+  // ★追加：シーケンスの現在のステップの角度をパブリッシュする関数
+  void publishSequenceStep() {
+    RCLCPP_INFO(this->get_logger(), "Publishing sequence step %d.", sequence_step_);
+    std_msgs::msg::Float32MultiArray angle_msg;
+    const auto& target_angles = sequence_data_[sequence_step_];
+    for(const auto& angle : target_angles){
+      angle_msg.data.push_back(static_cast<float>(angle));
+    }
+    pub_->publish(angle_msg);
   }
 };
 

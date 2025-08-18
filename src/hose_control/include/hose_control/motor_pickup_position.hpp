@@ -1,7 +1,11 @@
+#pragma once
+
 #include <vector>
 
+namespace motor_sequences{
+
 // 8x9の行列としてデータを保存
-std::vector<std::vector<float>> data_matrix = {
+inline const std::vector<std::vector<float>> pickup_sequence = {
     {257.0f, 265.0f, 190.0f, 91.0f, 16.0f, 15.0f, 70.0f, 87.0f, 36.0f},   // a
     {334.0f, 749.0f, 1142.0f, 335.0f, 678.0f, 1167.0f, 668.0f, 327.0f, 201.0f}, // p
     {168.0f, 237.0f, 178.0f, 10.0f, 16.0f, -85.0f, 42.0f, 471.0f, 527.0f},  // b
@@ -11,3 +15,5 @@ std::vector<std::vector<float>> data_matrix = {
     {342.0f, 743.0f, 1012.0f, 327.0f, 224.0f, 1213.0f, 659.0f, 846.0f, 207.0f}, // f
     {342.0f, 1051.0f, 1017.0f, 328.0f, 389.0f, 1062.0f, 662.0f, 849.0f, 207.0f}  // g
 };
+
+} //namespace motor_sewuences
