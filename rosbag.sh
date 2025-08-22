@@ -26,3 +26,7 @@ ros2 bag record \
     /switch \
     /tf \
     /tf_static \
+    /relay_switch \
+    /sensor/pressure \
+    /start_grasp \
+    /vacuum_flag \

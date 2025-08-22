@@ -96,8 +96,10 @@ class OffsetCommandNode(Node):
                     self.send_absolute_to_motor(motor_index, target_deg)
                 else:
                     self.get_logger().warn(f'Motor index out of range: {motor_index + 1}')
-                continue   # 次のループへ            
-            
+                if motor_index == 9:
+                    self.publish_chokudo_offset(target_deg)
+                continue   # 次のループへ
+
 
     def send_offset_to_motor(self, motor_index, offset_deg):
         new_angles = self.current_angles.copy()

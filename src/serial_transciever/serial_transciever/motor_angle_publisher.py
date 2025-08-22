@@ -8,7 +8,7 @@ class MotorAnglePublisher(Node):
         self.publisher_ = self.create_publisher(Float32MultiArray, '/motor_angles', 10)
         self.get_logger().info('Press key [a, b, c, e, f, g, h, p] + Enter to publish preset angles.')
         self.key_to_angles = {
-            "a": [257, 265, 190, 91, 16, 15, 70, 87, 36],
+            "a": [257, 265, 190, 91, 16, 15, 146, 103, 36],
             "p": [334, 749, 1142, 335, 678, 1167, 668, 327, 201],
             "b": [168, 237, 178, 10, 16, -85, 42, 471, 527],
             "h": [168, 366, 852, 1, 185, 1062, 659, 846, 207],

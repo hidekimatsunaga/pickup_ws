@@ -39,7 +39,7 @@ public:
     }
 
     current_angles_sub_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
-      "/current_motor_angles", 10,
+      "/motor_current_angles", 10,
       std::bind(&FeedbackMotorPublisher::currentAnglesCallback, this, std::placeholders::_1)
     );
     
@@ -131,6 +131,15 @@ private:
       RCLCPP_WARN(get_logger(), "Air sensor threshold exceeded! Starting sequence.");
       is_in_sequence_mode_ = true;
       sequence_step_ = 0;
+
+      // シーケンス開始時にmotor10の値を一度だけパブリッシュ
+      std_msgs::msg::Float32 motor10_msg;
+      // ゴミを吸着・保持するための角度を設定します。
+      // この値は、実際のロボットの動作に合わせて調整してください。
+      motor10_msg.data = 54.0; // 例: 吸着に適した角度として54.0を設定
+      pub_motor10_->publish(motor10_msg);
+      RCLCPP_INFO(this->get_logger(), "Published motor10 for pickup sequence: %.2f", motor10_msg.data);
+ 
       publishSequenceStep(); // シーケンスの最初のステップを実行
       return; // シーケンスモードに入ったので、これ以降の最近傍探索は行わない
     }
@@ -194,6 +203,15 @@ private:
 
     // 目標の角度（シーケンスの現在のステップ）を取得
     const auto& target_angles = sequence_data_[sequence_step_];
+    // // --- ここからログ出力の追加 ---
+    // std::stringstream ss_target, ss_current;
+    // for(const auto& angle : target_angles) ss_target << std::fixed << std::setprecision(2) << angle << " ";
+    // for(const auto& angle : current_motor_angles_) ss_current << std::fixed << std::setprecision(2) << angle << " ";
+    
+    // RCLCPP_INFO(this->get_logger(), "--------------------");
+    // RCLCPP_INFO(this->get_logger(), "目標角度: [ %s]", ss_target.str().c_str());
+    // RCLCPP_INFO(this->get_logger(), "現在角度: [ %s]", ss_current.str().c_str());
+    // // --- ログ出力の追加ここまで ---
 
     // 現在の角度が目標に到達したかチェック
     if (isCloseToTarget(target_angles, current_motor_angles_)) {
@@ -220,7 +238,7 @@ private:
     if (target.size() != current.size()) {
       return false;
     }
-    double tolerance = 1.5; // 許容誤差（例: 1.5度）。モーターの性能に合わせて調整。
+    double tolerance = 20; // 許容誤差（例: 10度）。モーターの性能に合わせて調整。
     for (size_t i = 0; i < target.size(); ++i) {
       if (std::abs(target[i] - current[i]) > tolerance) {
         return false; // 1つでも許容誤差を超えていたらfalse

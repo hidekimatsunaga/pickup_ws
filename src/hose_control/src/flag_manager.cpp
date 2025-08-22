@@ -4,18 +4,20 @@
 #include <std_msgs/msg/bool.hpp>
 #include <cmath>
 #include "hose_control/motor_initial_position.hpp"           // ← 先ほどのヘッダ
+#include "hose_control/motor_pickup_position.hpp"
 
 class FlagManager : public rclcpp::Node
 {
 public:
   FlagManager()
-  : Node("flag_manager")
+  : Node("flag_manager"),
+    stop_angles_(motor_sequences::pickup_sequence.back()),
+    stop_motor10_angle_(54.0f) 
   {
-    tolerance_       = this->declare_parameter("tolerance", 1.0);     // deg
-    tolerance10_     = this->declare_parameter("tolerance10", 10.0);     // deg
+    tolerance_       = this->declare_parameter("tolerance", 80.0);     // deg
+    tolerance10_     = this->declare_parameter("tolerance10", 80.0);     // deg
     require_arm_     = this->declare_parameter("require_arm", true);  // /start_grasp が必要か
     min_on_interval_ = this->declare_parameter("min_on_interval", 0.5); // ONの連打抑制[s]
-
 
     flag_pub_ = this->create_publisher<std_msgs::msg::Bool>("/vacuum_flag", 10);
 
@@ -91,6 +93,7 @@ private:
     on_latched_ = false;
     armed_ = false;
     RCLCPP_INFO(get_logger(), "All 10 motors reached stop angles → suction_flag=false");
+  
   }
 
   // ---------- 一度だけON発行（ラッチ） ----------
@@ -132,6 +135,8 @@ private:
   bool on_latched_{false};
   bool armed_{false};
   rclcpp::Time last_on_time_;
+  const std::vector<float> stop_angles_;
+  const float stop_motor10_angle_;
 };
 
 int main(int argc, char **argv) {
