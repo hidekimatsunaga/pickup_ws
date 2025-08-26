@@ -26,7 +26,7 @@ public:
     is_in_sequence_mode_(false), //シーケンス実行中かどうかのフラグ
     sequence_step_(0) //シーケンスの現在のステップ
   {
-    this->declare_parameter<double>("air_threshold", -150.0);
+    this->declare_parameter<double>("air_threshold", -110.0);
     this->get_parameter("air_threshold", air_threshold_);
 
     load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv");
