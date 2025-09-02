@@ -10,6 +10,6 @@
         <arg name="globalID" value="10"/>
         <arg name="axisNum" value="3"/>
     </include>
-    <executable cmd="python3 /home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample/BLV_R/drive_motor.py" output="screen"/>
-    <!-- <executable cmd="python3 /home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample/BLV_R/ros2_motor_v2.py" output="screen"/> -->
+    <executable cmd="python3 /home/matsunaga-h/pickup_ws/src/movement/om_modbus_master_V201/om_modbus_master/sample/BLV_R/drive_motor.py" output="screen"/>
+    <!-- <executable cmd="python3 /home/matsunaga-h/pickup_ws/src/movement/om_modbus_master_V201/om_modbus_master/sample/BLV_R/ros2_motor_v2.py" output="screen"/> -->
 </launch>

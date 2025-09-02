@@ -340,7 +340,7 @@ class MyPublisher(Node):
         self.wait(0.03)
 
         msg.write_addr = 0x0990  # 書き込みの起点：Share Read data[0]
-        msg.write_num = 36  # 書き込むデータ数*軸数=36
+        msg.write_num = 24  # 書き込むデータ数*軸数=36
         msg.data[0] = 45  # Share Read data[0] → DDO運転方式
         msg.data[1] = 46  # Share Read data[1] → DDO位置
         msg.data[2] = 47  # Share Read data[2] → DDO速度
@@ -381,7 +381,7 @@ class MyPublisher(Node):
         self.wait(0.03)
 
         msg.write_addr = 0x0990  # 書き込みの起点：Share Read data[0]
-        msg.write_num = 36  # 書き込むデータ数*軸数=36
+        msg.write_num = 24  # 書き込むデータ数*軸数=36
         msg.data[0] = 45  # Share Read data[0] → DDO運転方式
         msg.data[1] = 46  # Share Read data[1] → DDO位置
         msg.data[2] = 47  # Share Read data[2] → DDO速度
@@ -422,7 +422,7 @@ class MyPublisher(Node):
         self.wait(0.03)
 
         msg.write_addr = 0x0990  # 書き込みの起点：Share Read data[0]
-        msg.write_num = 36  # 書き込むデータ数*軸数=36
+        msg.write_num = 24  # 書き込むデータ数*軸数=36
         msg.data[0] = 45  # Share Read data[0] → DDO運転方式
         msg.data[1] = 46  # Share Read data[1] → DDO位置
         msg.data[2] = 47  # Share Read data[2] → DDO速度

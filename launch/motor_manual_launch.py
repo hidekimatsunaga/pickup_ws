@@ -14,11 +14,11 @@ def generate_launch_description():
             executable='chokudo_cameraswing_air_serial_node',
             name='angle_chokudo_node',
         ),
-        # Node(
-        #     package='serial_transciever',
-        #     executable='motor_manual_chokudo_node',
-        #     name='motor_manual_node',
-        # ),
+        Node(
+            package='serial_transciever',
+            executable='motor_manual_chokudo_node',
+            name='motor_manual_node',
+        ),
         Node(
             package='serial_transciever',
             executable='angle_arucopose_csv',

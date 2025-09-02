@@ -3,7 +3,7 @@ import cv2
 # カメラのキャプチャを開始
 # 0は通常、内蔵カメラまたは最初に認識されたUSBカメラを指します。
 # 複数のカメラがある場合は、1, 2, ...と数字を変えて試してください。
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(6)
 
 # カメラが正常に開かれたかを確認
 if not cap.isOpened():

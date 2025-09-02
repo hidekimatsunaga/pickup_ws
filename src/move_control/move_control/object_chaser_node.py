@@ -24,10 +24,10 @@ class ObjectChaserNode(Node):
 
         # --- 制御パラメータ（ここで調整します） ---
         self.target_frame = 'base_link'     # ロボットの基準座標系
-        self.target_distance = 0.5          # 目標距離 [m]
+        self.target_distance = 1.0         # 目標距離 [m]
         self.stop_threshold = 0.05          # 停止判定の許容誤差 [m]
-        self.kp_linear = 0.6                # 距離に対する比例ゲイン
-        self.kp_angular = 1.0               # 角度に対する比例ゲイン
+        self.kp_linear = 0.1               # 距離に対する比例ゲイン
+        self.kp_angular = 0.1               # 角度に対する比例ゲイン
         self.max_linear_speed = 0.3         # 最大並進速度 [m/s]
         self.max_angular_speed = 0.8        # 最大旋回速度 [rad/s]
         
@@ -60,6 +60,13 @@ class ObjectChaserNode(Node):
 
     def execute_control(self, target_x, target_y):
         distance = math.sqrt(target_x**2 + target_y**2)
+        
+        # =======================================================
+        # ▼▼▼ 変更点：距離をターミナルに表示してデバッグ ▼▼▼
+        # =======================================================
+        self.get_logger().info(f"物体までの計算上の距離: {distance:.2f} m")
+        # =======================================================
+
         angle_to_target = math.atan2(target_y, target_x)
         distance_error = distance - self.target_distance
 
@@ -82,7 +89,6 @@ class ObjectChaserNode(Node):
         cmd.angular.z = max(-self.max_angular_speed, min(self.max_angular_speed, cmd.angular.z))
 
         self.cmd_pub.publish(cmd)
-        # self.get_logger().info(f"Moving: dist={distance:.2f}, speed={speed:.2f}, angle={angle_to_target:.2f}")
 
     def check_timeout(self):
         # 一定時間、物体を検出できなかったら停止する

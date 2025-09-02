@@ -1,5 +1,5 @@
 # pickup_ws
-マニピュレータを動かすためにOpenrbとシリアル通信してros2にtopicに流す
+ゴミ拾いロボットの移動部分とホース部分の制御に関わるws
 
 ## シリアル通信でopenrbと送受信するノード（モータ9個の現在角の受信とモータ9個に角度司令を送信）
 - cd pickup_ws
@@ -36,3 +36,22 @@
 - 7 10
 - 8 -71
 - 9 -273
+
+## アクティブキャスタの動かし方
+cd mtn_ws/
+## terminal1
+- source install/setup.bash
+- ros2 launch launch/picking_drive_launcher.launch.xml
+## terminal2
+- source install/setup.bash
+- ros2 run dynamixel_sdk_examples read_write_node
+## terminal3
+- source install/setup.bash
+- ros2 run robot_motor2 steer_motor_node 
+## terminal4
+- source install/setup.bash
+- ros2 run robot_motor2 cmd_vel_to_motor_node 
+# joy起動方法
+## terminal5
+- source install/setup.bash
+- ros2 launch launch/joystic.launch.xml 
