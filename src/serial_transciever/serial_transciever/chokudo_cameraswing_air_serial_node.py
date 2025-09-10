@@ -14,7 +14,7 @@ class DualMotorSerialNode(Node):
 
         # 指令値保持
         self.angle1_cmd = 0.0
-        self.angle2_cmd = 72.86
+        self.angle2_cmd = 62.4
         self.prev_angle1_cmd = None
         self.prev_angle2_cmd = None
 

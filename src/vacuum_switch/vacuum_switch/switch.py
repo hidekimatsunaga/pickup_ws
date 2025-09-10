@@ -26,8 +26,8 @@ SERIAL_PORT = '/dev/serial/by-id/usb-Microchip_Technology_Inc._USB-RELAY1_X-RL2-
 BAUD_RATE = 9600
 
 # リレーに送信するコマンド
-COMMAND_ON = "A1B1"
-COMMAND_OFF = "A0B0"
+COMMAND_ON = "A1"
+COMMAND_OFF = "A0"
 
 # --- メイン処理 ---
 ser = None  # シリアルオブジェクトを初期化
