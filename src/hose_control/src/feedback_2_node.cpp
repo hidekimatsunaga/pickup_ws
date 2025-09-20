@@ -9,10 +9,10 @@
 #include "vision_msgs/msg/detection3_d_array.hpp" // ★ 追加
 
 
-class FeedbackGoalPositionNode : public rclcpp::Node {
+class Feedback2Node : public rclcpp::Node {
 public:
-  FeedbackGoalPositionNode()
-  : Node("feedback_goal_position_node"),
+  Feedback2Node()
+  : Node("feedback_2_node"),
     K_(this->declare_parameter("gain", 1.0)),
     tol_(this->declare_parameter("tolerance", 0.01)),
     auto_start_(this->declare_parameter("auto_start_grasp", true)),
@@ -163,7 +163,7 @@ private:
 int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<FeedbackGoalPositionNode>();  // ★ クラス名を揃える
+  auto node = std::make_shared<Feedback2Node>();  // ★ クラス名を揃える
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
