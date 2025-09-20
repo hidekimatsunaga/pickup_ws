@@ -44,7 +44,7 @@ public:
     );
     
     sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
-      "/goal_point", 10,
+      "/hose/goal_point", 10,
       std::bind(&FeedbackMotorPublisher::callback, this, std::placeholders::_1)
     );
 

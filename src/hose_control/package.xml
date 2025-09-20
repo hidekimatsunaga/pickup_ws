@@ -17,7 +17,8 @@
   <depend>eigen3_cmake_module</depend>   <!-- 追加 -->
   <depend>eigen</depend> 
   <depend>aruco_interfaces</depend> <!-- 追加 -->
-
+  <depend>vision_msgs</depend> <!-- 追加 -->
+  
   <export>
     <build_type>ament_cmake</build_type>
   </export>

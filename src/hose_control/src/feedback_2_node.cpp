@@ -6,6 +6,8 @@
 #include <std_msgs/msg/bool.hpp>
 #include <aruco_interfaces/msg/aruco_markers.hpp> // ★ 追加
 #include <array>
+#include "vision_msgs/msg/detection3_d_array.hpp" // ★ 追加
+
 
 class FeedbackGoalPositionNode : public rclcpp::Node {
 public:
@@ -18,14 +20,41 @@ public:
     meas_received_(false)             // ★ 初期化
   {
     // 目標位置
-    sub_goal_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
-      "/detected_depth_points", 10,
-      [this](const geometry_msgs::msg::PointStamped::SharedPtr msg)  // ★ 明示型
+    sub_goal_ = this->create_subscription<vision_msgs::msg::Detection3DArray>(
+      "/detected_objects_3d", 10,
+      [this](const vision_msgs::msg::Detection3DArray::SharedPtr msg)  // ★ 明示型
       {
-        goal_ = *msg;
-        publish_cmd();         // 初回送信
-        start_sent_ = false;
+      // 検出された物体が一つもなければ何もしない
+      if (msg->detections.empty()) {
+        return;
+      }
+
+
+      // 検出結果の配列の先頭にある物体の情報を取得
+      const auto& first_detection = msg->detections[0];
+
+
+      // 物体の認識結果がなければ何もしない
+      if (first_detection.results.empty()){
+        return;
+      }
+
+
+      // 認識結果の先頭にあるものの3D位置を取得
+      const auto& position = first_detection.results[0].pose.pose.position;
+
+
+      // goal_変数（PointStamped型）に値をセット
+      goal_.header = msg->header; // ヘッダーは元のメッセージから流用
+      goal_.point.x = position.x;
+      goal_.point.y = position.y;
+      goal_.point.z = position.z;
+      
+      // 元の処理を呼び出す
+      publish_cmd();
+      start_sent_ = false;
       });
+
 
     // 実測位置
     sub_meas_ = this->create_subscription<aruco_interfaces::msg::ArucoMarkers>(
@@ -35,10 +64,12 @@ public:
       {
         constexpr std::array<int64_t,3> ALLOWED = {0, 1, 2};
 
+
         for(size_t i = 0; i < msg->marker_ids.size(); ++i){
           int64_t id = msg->marker_ids[i];
           if(std::find(ALLOWED.begin(), ALLOWED.end(), id) == ALLOWED.end())
           continue;  // id が許可されていない場合はスキップ
+
 
           if (i >= msg->poses.size()) return;       // 念の為の境界確認
           // ここでは先頭のマーカーを使用（id で選ぶなら下で分岐）
@@ -52,11 +83,14 @@ public:
         } 
       });
 
+
     pub_cmd_ = this->create_publisher<geometry_msgs::msg::PointStamped>(
       "/hose/goal_point", 10);
     pub_start_ = this->create_publisher<std_msgs::msg::Bool>("/start_grasp", 10); // ★ 追加
 
+
   }
+
 
 private:
   /* ---------- メンバ ---------- */
@@ -67,18 +101,21 @@ private:
   bool meas_received_;  // ★ 未受信ガード
   bool start_sent_{false};         // ★ このゴールに対して/start_graspをもう出したか
 
+
   /* ★ ここを追加：サブスクライバのメンバ宣言 */
-  rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_goal_;
+  rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr sub_goal_;
   rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr sub_meas_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pub_cmd_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_start_; // ★ 把持開始の合図
   
+
 
   /* ---------- 関数 ---------- */
   void publish_cmd() {
     cmd_ = goal_;          // 初回は目標そのまま
     pub_cmd_->publish(cmd_);
   }
+
 
   // ★ 一度だけ /start_grasp を出す
   void publish_start_grasp_once()
@@ -90,12 +127,14 @@ private:
     RCLCPP_INFO(this->get_logger(), "[start_grasp]=true published");
   }
 
+
   void feedback() {
     if (!meas_received_) return;               // 実測がまだ来ていない
     using Vec3 = Eigen::Vector3d;
     Vec3 g(goal_.point.x, goal_.point.y, goal_.point.z);
     Vec3 m(meas_.point.x, meas_.point.y, meas_.point.z);
     Vec3 e = g - m;
+
 
     // ── 誤差を出力 ─────────────────────────────
     RCLCPP_INFO(this->get_logger(),
@@ -107,7 +146,9 @@ private:
       publish_start_grasp_once();  // ★ 一度だけ把持開始の合図
     }
 
+
     if (e.norm() < tol_) return;               // 近ければ終了
+
 
     Vec3 next = g + K_ * e;                    // 目標補正
     cmd_.header.stamp = this->now();
@@ -117,6 +158,7 @@ private:
     pub_cmd_->publish(cmd_);
   }
 };
+
 
 int main(int argc, char **argv)
 {
