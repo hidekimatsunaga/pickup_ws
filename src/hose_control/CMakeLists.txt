@@ -18,6 +18,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(aruco_interfaces REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 # include/ ディレクトリを全ターゲットに公開（方法 A）
 include_directories(include)
@@ -49,6 +50,10 @@ ament_target_dependencies(flag_manager
 add_executable(feedback_2_node src/feedback_2_node.cpp)
 ament_target_dependencies(feedback_2_node
   rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs)
+
+add_executable(lookup_table src/lookup_table.cpp)
+ament_target_dependencies(lookup_table
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs)
 # ────────────────────────────────────────────────────────────────
 # インストール設定
 # ────────────────────────────────────────────────────────────────
@@ -59,6 +64,7 @@ install(TARGETS
   feedback_m_kg_m
   flag_manager
   feedback_2_node
+  lookup_table
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/ DESTINATION include)

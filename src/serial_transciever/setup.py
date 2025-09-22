@@ -31,6 +31,7 @@ setup(
             'relay_controller = serial_transciever.relay_controller:main',
             'allmotor_manual_switch_node = serial_transciever.allmotor_manual_switch_node:main',
             'flag_relay_bridge = serial_transciever.flag_relay_bridge:main',
+            'auto_motor_publisher = serial_transciever.auto_motor_publisher:main',
         ],
     },
 )

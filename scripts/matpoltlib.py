@@ -92,7 +92,10 @@ correct_z = 0.729
 
 # CSV読み込み（ヘッダーなし、1行目スキップ）
 # ファイルパスはご自身の環境に合わせて修正してください。
-df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv', header=None, skiprows=1)
+# df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv', header=None, skiprows=1)
+df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0921_175729.csv', header=None, skiprows=1)
+
+# df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_0718_183109_cleaned_file_cleaned.csv', header=None, skiprows=1)
 
 # 位置情報のみ抽出（x, y, z）
 position = df.iloc[:, 12:15].astype(float)
