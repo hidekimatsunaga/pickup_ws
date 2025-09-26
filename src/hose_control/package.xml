@@ -19,7 +19,8 @@
   <depend>aruco_interfaces</depend> <!-- 追加 -->
   <depend>vision_msgs</depend> <!-- 追加 -->
   <depend>visualization_msgs</depend>
-  
+  <depend>target_selector</depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

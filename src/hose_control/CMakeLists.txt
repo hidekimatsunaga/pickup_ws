@@ -19,6 +19,7 @@ find_package(Eigen3 REQUIRED)
 find_package(aruco_interfaces REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(target_selector REQUIRED)
 
 # include/ ディレクトリを全ターゲットに公開（方法 A）
 include_directories(include)
@@ -33,7 +34,7 @@ ament_target_dependencies(nearest_motor_publisher
 
 add_executable(feedback_goal_position_node src/feedback_goal_position_node.cpp)
 ament_target_dependencies(feedback_goal_position_node
-  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs)
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs target_selector)
 
 add_executable(feedback_motor_publisher src/feedback_motor_publisher.cpp)
 ament_target_dependencies(feedback_motor_publisher
