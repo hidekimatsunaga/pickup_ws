@@ -151,7 +151,7 @@ class AllmotorManualSwitchNode(Node):
 
         for idx, val in enumerate(msg.data):
             if val == 0:
-                new_angles[idx] += 2.0     # +1° 加算
+                new_angles[idx] += 3.0     # +1° 加算
                 updated = True
                 self.get_logger().info(f'Switch[{idx+1}] = 0 → motor +2 deg')
 

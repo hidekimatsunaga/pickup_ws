@@ -3,7 +3,7 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Empty
+from std_msgs.msg import String, Bool, Empty, Float32
 from collections import deque
 
 class TaskManager(Node):
@@ -25,6 +25,7 @@ class TaskManager(Node):
 
         # Publisher / Subscriber
         self.state_pub = self.create_publisher(String, '/robot/state', 10)
+        self.camera_angle_pub = self.create_publisher(Float32, '/cameraswingmotor/target_angle', 10)
         self.create_subscription(Empty, '/detected_objects_3d', self.detected_objects_callback, 10)
         self.create_subscription(Bool, '/hose/result', self.hose_result_callback, 10)
 
@@ -35,9 +36,25 @@ class TaskManager(Node):
         
         # 1. 初期化状態から開始
         self.set_state(self.STATE_INITIALIZING)
+
+        # 初期化時にカメラの角度を設定
+        self.initialize_camera()
         
         # 2. 2秒後に探索を開始
         self.transition_timer = self.create_timer(2.0, self.start_searching)
+
+    def initialize_camera(self):
+        self.get_logger().info("カメラの初期化を行います...")
+        self.initial_angle_timer = self.create_timer(0.5, self._publish_initial_camera_angle)
+
+    def _publish_initial_camera_angle(self):
+        initial_angle = Float32()
+        initial_angle.data = 20.0  # 初期角度を20度に設定
+        self.camera_angle_pub.publish(initial_angle)
+        self.get_logger().info(f"カメラの角度を {initial_angle.data} 度に設定しました。")
+
+        if self.initial_angle_timer is not None:
+            self.initial_angle_timer.cancel()
 
     def set_state(self, new_state):
         if self._state != new_state:
@@ -46,10 +63,7 @@ class TaskManager(Node):
             self.publish_state()
 
             # 進行中の遷移タイマーがあればキャンセル
-            # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-            # ここが修正点です: .canceled -> .is_canceled()
             if self.transition_timer is not None and not self.transition_timer.is_canceled():
-            # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 self.transition_timer.cancel()
 
             # 状態に応じた処理を開始

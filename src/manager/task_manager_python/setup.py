@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'task_manager_node = task_manager_python.task_manager_node:main',
+            'movement_controller_node = task_manager_python.movement_controller_node:main',
         ],
     },
 )
