@@ -79,7 +79,7 @@ class CSVLoggerNode(Node):
         # 検出された各マーカーについてチェック
         for marker_id, pose in zip(msg.marker_ids, msg.poses):
             
-            if marker_id not in [1, 2, 3]:
+            if marker_id not in [0, 1, 2]:
                 continue # forループの次の繰り返し処理へ進む
                         
             # ★★★ 記録すべきかどうかのフラグ ★★★

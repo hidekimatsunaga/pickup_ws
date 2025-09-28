@@ -3,7 +3,8 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Bool, Empty, Float32
+from std_msgs.msg import String, Bool, Float32
+from geometry_msgs.msg import PointStamped  
 from collections import deque
 
 class TaskManager(Node):
@@ -26,7 +27,7 @@ class TaskManager(Node):
         # Publisher / Subscriber
         self.state_pub = self.create_publisher(String, '/robot/state', 10)
         self.camera_angle_pub = self.create_publisher(Float32, '/cameraswingmotor/target_angle', 10)
-        self.create_subscription(Empty, '/detected_objects_3d', self.detected_objects_callback, 10)
+        self.create_subscription(PointStamped, '/detected_depth_points', self.detected_objects_callback, 10)
         self.create_subscription(Bool, '/hose/result', self.hose_result_callback, 10)
 
         # 状態を定期的に配信するタイマー

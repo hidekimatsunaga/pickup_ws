@@ -4,7 +4,7 @@
 
 TargetSelectorNode::TargetSelectorNode() : Node("target_selector_node")
 {
-  this->declare_parameter<double>("min_z_distance", 0.01);
+  this->declare_parameter<double>("min_z_distance", 0.7);
   min_z_distance_ = this->get_parameter("min_z_distance").as_double();
 
   // ▼▼▼ ここを修正 ▼▼▼
@@ -37,8 +37,8 @@ TargetSelectorNode::TargetSelectorNode() : Node("target_selector_node")
 void TargetSelectorNode::point_callback(const geometry_msgs::msg::PointStamped::SharedPtr msg)
 {
   const std::lock_guard<std::mutex> lock(data_mutex_);
-  RCLCPP_INFO(this->get_logger(), "座標受信: X=%.2f, Y=%.2f, Z=%.2f",
-  msg->point.x, msg->point.y, msg->point.z);
+  // RCLCPP_INFO(this->get_logger(), "座標受信: X=%.2f, Y=%.2f, Z=%.2f",
+  // msg->point.x, msg->point.y, msg->point.z);
 
   recent_points_.push_back(*msg);
   if (recent_points_.size() > max_points_buffer_) {
@@ -81,6 +81,10 @@ void TargetSelectorNode::get_target_callback(
         if (point_msg.point.z < min_z_distance_) {
           continue;
         }
+
+        RCLCPP_INFO(this->get_logger(), "有効候補: X=%.2f, Y=%.2f, Z=%.2f",
+          point_msg.point.x, point_msg.point.y, point_msg.point.z);
+
         double distance = std::sqrt(pow(point_msg.point.x, 2) + pow(point_msg.point.y, 2) + pow(point_msg.point.z, 2));
         if (distance < min_distance) {
           min_distance = distance;

@@ -159,14 +159,13 @@ private:
     if (dataset_.empty()) return;
 
     // --- ここから置き換え ---
-
-    // パラメータ: 近くのいくつの点を見るか
-    constexpr int k_neighbors = 4;
-    // パラメータ: ゼロ除算を避けるための微小値
+    // パラメータ: 外挿に使用する近傍点の数（平面を定義するため3に固定）
+    constexpr int k_neighbors = 3;
+    // パラメータ: ゼロ除算や計算誤差を避けるための微小値
     constexpr double epsilon = 1e-9;
 
     if (dataset_.size() < k_neighbors) {
-    RCLCPP_WARN(this->get_logger(), "Not enough data in CSV to perform interpolation.");
+    RCLCPP_WARN(this->get_logger(), "Not enough data in CSV to perform extrapolation.");
     return;
     }
 
@@ -184,99 +183,127 @@ private:
     // 2. 距離が近い順にソート
     std::sort(distances.begin(), distances.end());
 
-    // 3. 最も近い k 個の点（近傍点）を取得
-    std::vector<std::pair<double, const DataPoint*>> neighbors(
-    distances.begin(),
-    distances.begin() + k_neighbors
-    );
+    // 3. 最も近い k (3) 個の点を取得
+    const auto& p1_ptr = *distances[0].second;
+    const auto& p2_ptr = *distances[1].second;
+    const auto& p3_ptr = *distances[2].second;
 
     // もし最も近い点との距離がほぼゼロなら、その点の値をそのまま使う
-    if (neighbors[0].first < epsilon) {
-    const DataPoint* closest = neighbors[0].second;
-    
-    // (元のコードと同じpublish処理)
-    std_msgs::msg::Float32MultiArray angle_msg;
-    angle_msg.data.assign(closest->motors.begin(), closest->motors.end());
-    pub_->publish(angle_msg);
-    
-    std_msgs::msg::Float32 motor10_msg;
-    motor10_msg.data = closest->motor10;
-    pub_motor10_->publish(motor10_msg);
-    
-    RCLCPP_INFO(this->get_logger(), "Target point is very close to a data point. Using it directly.");
-    return;
+    if (distances[0].first < epsilon) {
+        std_msgs::msg::Float32MultiArray angle_msg;
+        angle_msg.data.assign(p1_ptr.motors.begin(), p1_ptr.motors.end());
+        pub_->publish(angle_msg);
+        
+        std_msgs::msg::Float32 motor10_msg;
+        motor10_msg.data = p1_ptr.motor10;
+        pub_motor10_->publish(motor10_msg);
+        
+        RCLCPP_INFO(this->get_logger(), "Target point is very close to a data point. Using it directly.");
+        return;
     }
 
-    // 4. 重みの計算と各モーター角度の補間
-    double total_weight = 0.0;
-    std::vector<double> interpolated_motors(9, 0.0);
-    double interpolated_motor10 = 0.0;
-    std::vector<double> weights;
+    // 4. 平面を定義するベクトルと、目標点へのベクトルを計算
+    // v1 = P2 - P1
+    const double v1_x = p2_ptr.x - p1_ptr.x;
+    const double v1_y = p2_ptr.y - p1_ptr.y;
+    const double v1_z = p2_ptr.z - p1_ptr.z;
+    // v2 = P3 - P1
+    const double v2_x = p3_ptr.x - p1_ptr.x;
+    const double v2_y = p3_ptr.y - p1_ptr.y;
+    const double v2_z = p3_ptr.z - p1_ptr.z;
+    // target_vec = Target - P1
+    const double target_vec_x = x - p1_ptr.x;
+    const double target_vec_y = y - p1_ptr.y;
+    const double target_vec_z = z - p1_ptr.z;
 
-    for (const auto& neighbor : neighbors) {
-    double weight = 1.0 / neighbor.first; // 距離の逆数を重みとする
-    weights.push_back(weight);
-    total_weight += weight;
+    // 5. target_vec = a*v1 + b*v2 となる係数 a, b を最小二乗法で解く
+    // 正規方程式 (A^T * A) * [a, b]^T = A^T * target_vec を解く
+    const double dot_v1_v1 = v1_x*v1_x + v1_y*v1_y + v1_z*v1_z;
+    const double dot_v1_v2 = v1_x*v2_x + v1_y*v2_y + v1_z*v2_z;
+    const double dot_v2_v2 = v2_x*v2_x + v2_y*v2_y + v2_z*v2_z;
+
+    const double det = dot_v1_v1 * dot_v2_v2 - dot_v1_v2 * dot_v1_v2;
+
+    double a = 0.0, b = 0.0;
+    // detが0に近い場合（3点がほぼ一直線上にある場合）、計算が不安定になるため、
+    // 最も単純な最近傍法（一番近い点の値を使う）にフォールバックする
+    if (std::abs(det) < epsilon) {
+        RCLCPP_WARN(this->get_logger(), "Neighbor points are collinear. Falling back to nearest neighbor.");
+        // 最近傍法と同じ処理を行う（p1_ptrの値をそのまま使う）
+        std_msgs::msg::Float32MultiArray angle_msg;
+        angle_msg.data.assign(p1_ptr.motors.begin(), p1_ptr.motors.end());
+        pub_->publish(angle_msg);
+        std_msgs::msg::Float32 motor10_msg;
+        motor10_msg.data = p1_ptr.motor10;
+        pub_motor10_->publish(motor10_msg);
+        return;
+    } else {
+        const double dot_target_v1 = target_vec_x*v1_x + target_vec_y*v1_y + target_vec_z*v1_z;
+        const double dot_target_v2 = target_vec_x*v2_x + target_vec_y*v2_y + target_vec_z*v2_z;
+        
+        // 逆行列を解いて a, b を求める
+        a = (dot_target_v1 * dot_v2_v2 - dot_target_v2 * dot_v1_v2) / det;
+        b = (dot_target_v2 * dot_v1_v1 - dot_target_v1 * dot_v1_v2) / det;
     }
 
-    for (size_t i = 0; i < neighbors.size(); ++i) {
-    const auto& dp = *neighbors[i].second;
-    const double normalized_weight = weights[i] / total_weight; // 重みの正規化
+    // 6. 係数 a, b を使ってモーター角度を外挿
+    std::vector<double> extrapolated_motors(9, 0.0);
+    for (size_t i = 0; i < 9; ++i) {
+        const double m1 = p1_ptr.motors[i];
+        const double m2 = p2_ptr.motors[i];
+        const double m3 = p3_ptr.motors[i];
+        // M_target = M1 + a * (M2 - M1) + b * (M3 - M1)
+        extrapolated_motors[i] = m1 + a * (m2 - m1) + b * (m3 - m1);
+    }
+    double extrapolated_motor10 = p1_ptr.motor10 + a * (p2_ptr.motor10 - p1_ptr.motor10) + b * (p3_ptr.motor10 - p1_ptr.motor10);
 
-    for (size_t j = 0; j < dp.motors.size(); ++j) {
-        interpolated_motors[j] += dp.motors[j] * normalized_weight;
-    }
-    interpolated_motor10 += dp.motor10 * normalized_weight;
-    }
-    // ★ここからマーカー発行処理を追加
+
+    // ★ここからマーカー発行処理を追加 (これは元のコードと同じ)
+    // ... (元のマーカー発行処理をここにそのままコピーしてください)
     visualization_msgs::msg::MarkerArray marker_array;
     int marker_id = 0;
-    for (const auto& neighbor : neighbors) {
+    // 近傍点をマーカーとして表示する
+    for(int i = 0; i < k_neighbors; ++i) {
+        const auto& neighbor_ptr = *distances[i].second;
         visualization_msgs::msg::Marker marker;
-        marker.header.frame_id = msg->header.frame_id; // goal_pointと同じ座標系
+        marker.header.frame_id = msg->header.frame_id;
         marker.header.stamp = this->get_clock()->now();
         marker.ns = "neighbor_points";
         marker.id = marker_id++;
-        marker.type = visualization_msgs::msg::Marker::SPHERE; // 球体マーカー
+        marker.type = visualization_msgs::msg::Marker::SPHERE;
         marker.action = visualization_msgs::msg::Marker::ADD;
-
-        // マーカーの位置を近傍点の座標に設定
-        const auto& dp = *neighbor.second;
-        marker.pose.position.x = dp.x;
-        marker.pose.position.y = dp.y;
-        marker.pose.position.z = dp.z;
+        marker.pose.position.x = neighbor_ptr.x;
+        marker.pose.position.y = neighbor_ptr.y;
+        marker.pose.position.z = neighbor_ptr.z;
         marker.pose.orientation.w = 1.0;
-
-        // マーカーのサイズ (直径2cm)
         marker.scale.x = 0.02;
         marker.scale.y = 0.02;
         marker.scale.z = 0.02;
-
-        // マーカーの色 (赤色)
         marker.color.r = 1.0f;
         marker.color.g = 0.0f;
         marker.color.b = 0.0f;
-        marker.color.a = 1.0; // 不透明
-
-        // マーカーが自動で消えるまでの時間 (1秒)
+        marker.color.a = 1.0;
         marker.lifetime = rclcpp::Duration(1, 0);
-
         marker_array.markers.push_back(marker);
     }
     marker_pub_->publish(marker_array);
-    // 5. 補間した結果をパブリッシュ
+    // ... (マーカー処理ここまで)
+
+
+    // 7. 外挿した結果をパブリッシュ
     std_msgs::msg::Float32MultiArray angle_msg;
-    angle_msg.data.assign(interpolated_motors.begin(), interpolated_motors.end());
+    angle_msg.data.assign(extrapolated_motors.begin(), extrapolated_motors.end());
     pub_->publish(angle_msg);
 
     std_msgs::msg::Float32 motor10_msg;
-    motor10_msg.data = interpolated_motor10;
+    motor10_msg.data = extrapolated_motor10;
     pub_motor10_->publish(motor10_msg);
 
     std::stringstream ss;
-    for (auto a : interpolated_motors) ss << std::fixed << std::setprecision(2) << a << " ";
-    RCLCPP_INFO(this->get_logger(), "Published interpolated motor1-9: %s, motor10: %.2f", ss.str().c_str(), interpolated_motor10);
+    for (auto ang : extrapolated_motors) ss << std::fixed << std::setprecision(2) << ang << " ";
+    RCLCPP_INFO(this->get_logger(), "Published extrapolated motor1-9: %s, motor10: %.2f", ss.str().c_str(), extrapolated_motor10);
 }
+
 // ★追加：モーターの現在角度を受け取ったときのコールバック関数
   void currentAnglesCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
   {

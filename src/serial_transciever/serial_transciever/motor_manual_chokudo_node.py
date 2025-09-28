@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32, Float32MultiArray
 import threading
-
+import sys, re
 
 class OffsetCommandNode(Node):
     def __init__(self):
@@ -60,9 +60,18 @@ class OffsetCommandNode(Node):
         self.get_logger().info(f'Cameraswing angle updated: {self.current_cameraswing:.2f} deg')
 
     def keyboard_listener(self):
-        import sys, re          # ← 先頭で re を追加
         while True:
             line = sys.stdin.readline().strip().upper()
+
+            if line == "A":
+                # 'a' が入力されたら、すべてのモーターを指定の角度に設定
+                target_angles = [257.0, 265.0, 202.0, 77.0, 20.0, 22.0, 146.0, 103.0, 36.0]
+                msg = Float32MultiArray()
+                msg.data = target_angles
+                self.publisher.publish(msg)
+                self.get_logger().info(f'Sent command: Set all motors to predefined pose "A".')
+                continue # 他の条件と一致しないように次のループへ
+
             #直動機構モーター
             if line == "CA+": # 上がる
                 self.publish_chokudo_offset(+360.0)

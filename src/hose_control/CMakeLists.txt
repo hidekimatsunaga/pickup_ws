@@ -55,7 +55,10 @@ ament_target_dependencies(feedback_2_node
 add_executable(lookup_table src/lookup_table.cpp)
 ament_target_dependencies(lookup_table
   rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs)
-# ────────────────────────────────────────────────────────────────
+add_executable(lookup_table_extrapolation src/lookup_table_extrapolation.cpp)
+ament_target_dependencies(lookup_table_extrapolation
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs)
+  # ────────────────────────────────────────────────────────────────
 # インストール設定
 # ────────────────────────────────────────────────────────────────
 install(TARGETS
@@ -66,6 +69,7 @@ install(TARGETS
   flag_manager
   feedback_2_node
   lookup_table
+  lookup_table_extrapolation
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/ DESTINATION include)
