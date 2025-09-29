@@ -266,6 +266,27 @@ private:
     }
 
     double extrapolated_motor10 = p1_ptr.motor10 + a * (p2_ptr.motor10 - p1_ptr.motor10) + b * (p3_ptr.motor10 - p1_ptr.motor10);
+    // ★★★ ここから追加 ★★★
+    // Z座標に応じてモーター10の角度を補正する
+    // --- パラメータ（要調整）---
+    // 補正が不要になる基準のZ座標。例えば、ロボットから見て平均的な地面の高さなどを設定します。
+    const double Z_REFERENCE = 0.7; 
+    // 補正の強さを決める係数（ゲイン）。大きいほどZの変化に敏感に反応します。
+    const double MOTOR10_Z_GAIN = 3000.0; 
+    // -------------------------
+
+    // 基準Z座標と目標Z座標の差を計算
+    // ユーザーの定義通り、zが小さいほど差がプラスになるように(Z_REFERENCE - z)とします
+    double z_difference = Z_REFERENCE - pt.z;
+
+    // Z座標の差にゲインを掛けて補正量を算出
+    double adjustment = MOTOR10_Z_GAIN * z_difference;
+
+    // 元の計算結果に補正量を加える
+    extrapolated_motor10 += adjustment;
+
+    RCLCPP_INFO(this->get_logger(), "Motor10 adjustment for Z(%.2f): %.2f -> Final angle before clamp: %.2f", pt.z, adjustment, extrapolated_motor10);
+    // ★★★ 追加ここまで ★★★
 
     // ★ここからマーカー発行処理を追加 (これは元のコードと同じ)
     // ... (元のマーカー発行処理をここにそのままコピーしてください)
