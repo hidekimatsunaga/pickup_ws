@@ -18,25 +18,5 @@ def generate_launch_description():
             package='hose_control',
             executable='flag_manager',
             name='flag_manager',
-        ),
-        Node(
-            package='serial_transciever',
-            executable='angle_serial_node',
-            name='angle_serial_node',
-        ),
-        Node(
-            package='serial_transciever',
-            executable='chokudo_cameraswing_air_serial_node',
-            name='angle_chokudo_node',
-        ),
-        Node(
-            package='hose_control',
-            executable='feedback_goal_position_node',
-            name='feedback_goal_position_node',
-        ),
-        Node(
-            package='hose_control',
-            executable='feedback_motor_publisher',
-            name='feedback_motor_publisher',
-        ),
+        )
     ])

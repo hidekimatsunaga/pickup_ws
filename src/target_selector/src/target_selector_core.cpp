@@ -4,7 +4,7 @@
 
 TargetSelectorNode::TargetSelectorNode() : Node("target_selector_node")
 {
-  this->declare_parameter<double>("min_z_distance", 0.7);
+  this->declare_parameter<double>("min_z_distance", 0.6);
   min_z_distance_ = this->get_parameter("min_z_distance").as_double();
 
   // ▼▼▼ ここを修正 ▼▼▼

@@ -85,9 +85,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 # --- 正解の値をここに設定してください ---
-correct_x = 0.11
-correct_y = -0.2
-correct_z = 0.73
+correct_x = 0.14
+correct_y = -0.14
+correct_z = 0.72
 # ------------------------------------
 
 # CSV読み込み（ヘッダーなし、1行目スキップ）

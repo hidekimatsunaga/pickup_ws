@@ -255,8 +255,17 @@ private:
         // M_target = M1 + a * (M2 - M1) + b * (M3 - M1)
         extrapolated_motors[i] = m1 + a * (m2 - m1) + b * (m3 - m1);
     }
-    double extrapolated_motor10 = p1_ptr.motor10 + a * (p2_ptr.motor10 - p1_ptr.motor10) + b * (p3_ptr.motor10 - p1_ptr.motor10);
 
+    constexpr double MIN_ANGLE = 0.0;   // モーター角度の下限値
+    constexpr double MAX_ANGLE = 1700.0; // モーター角度の上限値
+
+    // 外挿した角度を制限範囲内にクリップ
+    for (auto& angle : extrapolated_motors) {
+        if (angle < MIN_ANGLE) angle = MIN_ANGLE;
+        if (angle > MAX_ANGLE) angle = MAX_ANGLE;
+    }
+
+    double extrapolated_motor10 = p1_ptr.motor10 + a * (p2_ptr.motor10 - p1_ptr.motor10) + b * (p3_ptr.motor10 - p1_ptr.motor10);
 
     // ★ここからマーカー発行処理を追加 (これは元のコードと同じ)
     // ... (元のマーカー発行処理をここにそのままコピーしてください)
