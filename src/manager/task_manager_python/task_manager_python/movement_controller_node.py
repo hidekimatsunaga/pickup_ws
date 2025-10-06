@@ -16,13 +16,23 @@ class MovementController(Node):
         # Publisher: ロボットの速度指令を配信
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
+        self.create_subscription(Twist, '/chaser/cmd_vel', self.chaser_cmd_callback, 10)
+
         # Subscriber: TaskManagerからロボットの状態を受信
         self.create_subscription(String, '/robot/state', self.state_callback, 10)
 
         # 0.1秒ごとに速度指令を出し続けるためのタイマー
         self.timer = self.create_timer(0.1, self.publish_cmd_vel)
 
+        self.approaching_twist = Twist()
+
         self.get_logger().info("✅ Movement Controller ノード (ROS2) が起動しました。")
+
+    def chaser_cmd_callback(self, msg):
+        """
+        /chaser/cmd_vel を受信したときに呼ばれるコールバック
+        """
+        self.approaching_twist = msg
 
     def state_callback(self, msg):
         """
@@ -46,17 +56,14 @@ class MovementController(Node):
             twist.angular.z = 0.0 # 角速度 [rad/s]
 
         elif self.current_state == "approaching":
-            # 接近中：目標に向かって前進
-            # TODO: 本来は、ここで検出した物体の位置情報 (/detected_objects_3dなど) をもとに
-            #       目標地点へのx方向の速度とω（角速度）を計算する必要があります。
-            #       今回は仮の動作として、少し速めに直進します。
-            twist.linear.x = 0.2  # 前進速度 [m/s]
-            twist.angular.z = 0.0 # 角速度 [rad/s]
+            # 接近中：/chaser/cmd_vel の指令を使用
+            twist = self.approaching_twist
         
         else:
             # collecting, stopping, initializing など、その他の状態では停止
             twist.linear.x = 0.0
             twist.angular.z = 0.0
+            self.approaching_twist = Twist()  # 接近指令もリセット
         
         # 最終的な速度指令を配信
         self.cmd_vel_pub.publish(twist)

@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'task_manager_node = task_manager_python.task_manager_node:main',
             'movement_controller_node = task_manager_python.movement_controller_node:main',
+            'hose_controller_node = task_manager_python.hose_controller_node:main',
         ],
     },
 )

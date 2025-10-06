@@ -16,7 +16,7 @@ class ObjectChaserNode(Node):
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         # === パブリッシャ ===
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.cmd_pub = self.create_publisher(Twist, '/chaser/cmd_vel', 10)
         self.camera_swing_pub = self.create_publisher(Float32, '/cameraswingmotor/target_angle', 10)
 
         # === サブスクライバ ===
