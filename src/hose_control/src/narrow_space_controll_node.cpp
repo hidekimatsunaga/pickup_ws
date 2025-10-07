@@ -10,7 +10,7 @@
 #include <limits>
 #include <cmath>
 #include "hose_control/motor_initial_position.hpp"
-#include "hose_control/motor_pickup_position.hpp"
+#include "hose_control/narrow_space_controll_position.hpp"
 
 struct DataPoint {
   double x, y, z;
@@ -21,7 +21,7 @@ struct DataPoint {
 class NarrowSpaceControllNode : public rclcpp::Node {
 public:
   NarrowSpaceControllNode()
-  : Node("feedback_motor_publisher"),
+  : Node("narrow_space_controll_node"),
     air_value_(0.0),
     is_in_sequence_mode_(false), //シーケンス実行中かどうかのフラグ
     sequence_step_(0) //シーケンスの現在のステップ
