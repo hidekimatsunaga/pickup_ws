@@ -82,6 +82,10 @@ class AllmotorManualSwitchNode(Node):
                 self.publish_chokudo_offset(+4000.0)
             elif line == "CB": # 下がる
                 self.publish_chokudo_offset(-4000.0)
+            elif line == "CAA": #上がる
+                self.publish_chokudo_offset(+14000.0)
+            elif line == "CBB": # 下がる
+                self.publish_chokudo_offset(-14000.0)
             #カメラスイングモーター
             elif line == "D+": #下げる
                 self.publish_cameraswing_offset(+70.0)

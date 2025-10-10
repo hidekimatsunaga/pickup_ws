@@ -20,6 +20,7 @@ find_package(aruco_interfaces REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(target_selector REQUIRED)
+find_package(interactive_markers REQUIRED)
 
 # include/ ディレクトリを全ターゲットに公開（方法 A）
 include_directories(include)
@@ -59,7 +60,15 @@ ament_target_dependencies(lookup_table
 add_executable(lookup_table_extrapolation src/lookup_table_extrapolation.cpp)
 ament_target_dependencies(lookup_table_extrapolation
   rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs)
-  
+
+add_executable(narrow_space_controll_node src/narrow_space_controll_node.cpp)
+ament_target_dependencies(narrow_space_controll_node
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs)
+
+add_executable(interactive_marker_node src/interactive_marker_node.cpp)
+ament_target_dependencies(interactive_marker_node
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs interactive_markers)
+
   # ────────────────────────────────────────────────────────────────
 # インストール設定
 # ────────────────────────────────────────────────────────────────
@@ -72,6 +81,8 @@ install(TARGETS
   feedback_2_node
   lookup_table
   lookup_table_extrapolation
+  narrow_space_controll_node
+  interactive_marker_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/ DESTINATION include)

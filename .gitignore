@@ -6,5 +6,5 @@ __pycache__/
 *.egg-info/
 *.swp
 *.DS_Store
-rosbag2_*/
+rosbag/
 .vscode/

@@ -68,6 +68,7 @@ Visualization Manager:
       Visibility:
         Grid: true
         Image: true
+        InteractiveMarkers: true
         PointCloud2: true
         PointStamped: true
         PoseArray: true
@@ -188,6 +189,15 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /detected_depth_points
       Value: true
+    - Class: rviz_default_plugins/InteractiveMarkers
+      Enable Transparency: true
+      Enabled: true
+      Interactive Markers Namespace: /simple_marker
+      Name: InteractiveMarkers
+      Show Axes: false
+      Show Descriptions: true
+      Show Visual Aids: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -234,7 +244,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 1.38601553440094
+      Distance: 5.1809539794921875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -249,10 +259,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -1.5697963237762451
+      Pitch: 0.7402022480964661
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.850426197052002
+      Yaw: 5.770445346832275
     Saved: ~
 Window Geometry:
   Camera:
