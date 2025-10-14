@@ -6,9 +6,9 @@
 #include <cmath>
 
 // ご提示いただいたヘッダーファイルをインクルードします
-#include "motor_sequence.hpp" 
+#include "hose_control/narrow_space_controll_position.hpp"
 
-class AutoSequenceNode : public rcppl::Node {
+class AutoSequenceNode : public rclcpp::Node {
 public:
   AutoSequenceNode()
   : Node("auto_sequence_node"),
@@ -27,7 +27,7 @@ public:
     // --- Publisher ---
     auto qos = rclcpp::QoS(rclcpp::KeepLast(50)).reliable();
     pub_motor1_9_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", qos);
-    pub_motor10_ = this->create_publisher<std_msgs/msg/Float32>("/chokudomotor/target_angle", 10);
+    pub_motor10_ = this->create_publisher<std_msgs::msg::Float32>("/chokudomotor/target_angle", 10);
 
     // ノード起動時にシーケンスを開始
     RCLCPP_INFO(this->get_logger(), "Node started. Automatically starting sequence.");
