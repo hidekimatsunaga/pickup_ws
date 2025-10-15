@@ -4,9 +4,8 @@
 #include <vector>
 #include <string>
 #include <cmath>
-
-// ご提示いただいたヘッダーファイルをインクルードします
 #include "hose_control/narrow_space_controll_position.hpp"
+#include "hose_control/motor_pickup_position.hpp"  
 
 class AutoSequenceNode : public rclcpp::Node {
 public:
@@ -34,10 +33,10 @@ public:
     is_in_sequence_mode_ = true;
     sequence_step_ = 0;
     
-    std_msgs::msg::Float32 motor10_msg;
-    motor10_msg.data = 54.0f; // float型なので 'f' をつけるのが一般的
-    pub_motor10_->publish(motor10_msg);
-    RCLCPP_INFO(this->get_logger(), "Published initial motor10 angle: %.2f", motor10_msg.data);
+    // std_msgs::msg::Float32 motor10_msg;
+    // motor10_msg.data = 54.0f; // float型なので 'f' をつけるのが一般的
+    // pub_motor10_->publish(motor10_msg);
+    // RCLCPP_INFO(this->get_logger(), "Published initial motor10 angle: %.2f", motor10_msg.data);
     
     publishSequenceStep();
   }
@@ -50,7 +49,6 @@ private:
   bool is_in_sequence_mode_;
   int sequence_step_;
   
-  // ★★★ 変更点1: メンバー変数の型を `float` に統一 ★★★
   std::vector<std::vector<float>> sequence_data_; 
   std::vector<float> current_motor_angles_;
   
@@ -75,28 +73,48 @@ private:
     }
   }
 
-  // ★★★ 変更点2: 関数の引数も `float` に統一 ★★★
-  bool isCloseToTarget(const std::vector<float>& target, const std::vector<float>& current) {
-    if (target.size() != current.size()) return false;
+  // ★★★ 変更点2: シーケンス進行の判定はモーター1-9のみで行うように修正 ★★★
+  bool isCloseToTarget(const std::vector<float>& target_with_motor10, const std::vector<float>& current_1_to_9) {
+    // targetは10要素、currentは9要素であることを想定
+    if (target_with_motor10.size() < 9 || current_1_to_9.size() != 9) {
+      RCLCPP_WARN(this->get_logger(), "Size mismatch for comparison. Target size: %zu, Current size: %zu", 
+                  target_with_motor10.size(), current_1_to_9.size());
+      return false;
+    }
     
-    float tolerance = 20.0f; // 許容誤差も float 型に
-    for (size_t i = 0; i < target.size(); ++i) {
-      // std::abs は float 型にも対応しています
-      if (std::abs(target[i] - current[i]) > tolerance) return false;
+    float tolerance = 20.0f;
+    // モーター1から9までを比較
+    for (size_t i = 0; i < 9; ++i) {
+      if (std::abs(target_with_motor10[i] - current_1_to_9[i]) > tolerance) return false;
     }
     return true;
   }
 
+    // ★★★ 変更点3: モーター10の指令もパブリッシュするように関数全体を修正 ★★★
   void publishSequenceStep() {
     if(static_cast<size_t>(sequence_step_) >= sequence_data_.size()) return;
 
-    RCLCPP_INFO(this->get_logger(), "Publishing sequence step %d.", sequence_step_);
-    std_msgs::msg::Float32MultiArray angle_msg;
+    const auto& target_angles_all = sequence_data_[sequence_step_];
 
-    // ★★★ 変更点3: target_angles は既に float の vector なので、そのまま代入できる ★★★
-    angle_msg.data = sequence_data_[sequence_step_];
-    
-    pub_motor1_9_->publish(angle_msg);
+    // データが10個あるかチェック
+    if (target_angles_all.size() < 10) {
+      RCLCPP_ERROR(this->get_logger(), "Sequence data for step %d has less than 10 values!", sequence_step_);
+      return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "Publishing sequence step %d.", sequence_step_);
+
+    // --- モーター1-9への指令 ---
+    std_msgs::msg::Float32MultiArray motor1_9_msg;
+    motor1_9_msg.data.assign(target_angles_all.begin(), target_angles_all.begin() + 9);
+    pub_motor1_9_->publish(motor1_9_msg);
+
+    // --- モーター10への指令 ---
+    std_msgs::msg::Float32 motor10_msg;
+    motor10_msg.data = target_angles_all[9]; // 10番目のデータを格納
+    pub_motor10_->publish(motor10_msg);
+
+    RCLCPP_INFO(this->get_logger(), "Published motor 1-9 angles and motor 10 angle: %.2f", motor10_msg.data);
   }
 };
 
