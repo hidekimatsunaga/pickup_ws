@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'move_control'
+package_name = 'object_chaser'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'object_chaser_node = move_control.object_chaser_node:main',
+            'object_chaser_node = object_chaser.object_chaser_node:main',
         ],
     },
 )
