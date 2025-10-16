@@ -15,13 +15,8 @@ def generate_launch_description():
             name='movement_controller_node',
         ),
         Node(
-            package='task_manager',
-            executable='vacuum_manager_node',
-            name='vacuum_manager_node',
-        ),
-        Node(
-            package='task_manager',
-            executable='manipulator_manager',
-            name='manipulator_manager',
+            package='object_chaser',
+            executable='object_chaser_node',
+            name='object_chaser_node',
         ),
     ])

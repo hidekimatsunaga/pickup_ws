@@ -15,9 +15,14 @@ def generate_launch_description():
             name='flag_relay_bridge',
         ),
         Node(
-            package='hose_control',
-            executable='flag_manager',
-            name='flag_manager',
+            package='task_manager',
+            executable='vacuum_manager_node',
+            name='vacuum_manager_node',
+        ),
+        Node(
+            package='task_manager',
+            executable='manipulator_manager',
+            name='manipulator_manager',
         ),
         Node(
             package='serial_transciever',
@@ -33,6 +38,11 @@ def generate_launch_description():
             package='hose_control',
             executable='feedback_goal_position_node',
             name='feedback_goal_position_node',
+        ),
+        Node(
+            package='target_selector',
+            executable='target_selector_node_exe ',
+            name='target_selector_node_exe',
         ),
         Node(
             package='hose_control',
