@@ -29,6 +29,7 @@ class TaskManager(Node):
         self.camera_angle_pub = self.create_publisher(Float32, '/cameraswingmotor/target_angle', 10)
         self.create_subscription(PointStamped, '/detected_depth_points', self.detected_objects_callback, 10)
         self.create_subscription(Bool, '/hose/result', self.hose_result_callback, 10)
+        self.create_subscription(Bool, '/chaser/approach_completed', self.chaser_completion_callback, 10)
 
         # 状態を定期的に配信するタイマー
         self.create_timer(1.0, self.publish_state)
@@ -69,9 +70,9 @@ class TaskManager(Node):
 
             # 状態に応じた処理を開始
             if self._state == self.STATE_APPROACHING:
-                self.get_logger().info("  -> ゴミに接近中...")
+                self.get_logger().info("  -> ゴミに接近中...ObjectChaserNodeからの完了通知を待ちます。")
                 # TODO: ナビゲーションノードへ目標を指示
-                self.transition_timer = self.create_timer(3.0, self.on_approach_done)
+                # self.transition_timer = self.create_timer(3.0, self.on_approach_done)
 
             elif self._state == self.STATE_COLLECTING:
                 self.get_logger().info("  -> ホースでゴミを回収中...")
@@ -91,11 +92,11 @@ class TaskManager(Node):
         self.transition_timer.cancel()
         self.set_state(self.STATE_SEARCHING)
 
-    def on_approach_done(self):
-        """接近完了（シミュレーション）時に呼ばれるコールバック"""
-        self.transition_timer.cancel()
-        if self._state == self.STATE_APPROACHING:
-            self.set_state(self.STATE_COLLECTING)
+    # def on_approach_done(self):
+    #     """接近完了（シミュレーション）時に呼ばれるコールバック"""
+    #     self.transition_timer.cancel()
+    #     if self._state == self.STATE_APPROACHING:
+    #         self.set_state(self.STATE_COLLECTING)
 
     def on_stop_done(self):
         """停止処理完了時に呼ばれるコールバック"""
@@ -116,6 +117,11 @@ class TaskManager(Node):
             self.get_logger().info("🗑️ ゴミを検出しました。タスクキューに追加します。")
             self.target_queue.append("dummy_target_1")
             self.set_state(self.STATE_APPROACHING)
+
+    def chaser_completion_callback(self, msg):
+        if msg.data and self._state == self.STATE_APPROACHING:
+            self.get_logger().info("👍 接近完了通知を受信しました。ホースでの回収を開始します。")
+            self.set_state(self.STATE_COLLECTING)
 
     def hose_result_callback(self, msg):
         if self._state == self.STATE_COLLECTING:

@@ -10,6 +10,34 @@
 ## シリアル通信でopenrbと送受信するノード（直動モーターとカメラスイングモーターの現在の角度の受信とそれぞれのモーターに角度司令を送信）
 - ros2 run serial_transciever chokudo_cameraswing_air_serial_node
 
+# hose_control  マニピュレータの制御に関わるパッケージ
+## csvを線形補間して、モーターの角度司令を行うノード
+- ros2 run hose_control lookup_table
+## arucoと物体の位置からfeedbackして先端を物体の奥に行くようなゴールを生成
+- ros2 run hose_control feedback_goal_position_node
+
+# yoloで発見した物体の位置を固定してサービスを用意するノード
+- ros2 run target_selector target_selector_node_exe 
+
+# ゴミを検出して近づいて、回収するまでのtaskのマネージャー
+- ros2 run task_manager_python task_manager_node
+
+# task_manager_nodeからロボットの状態の情報をもらい、移動部分のマネージャーを行う
+- ros2 run task_manager_python movement_controller_node
+
+# task_manager_nodeからロボットの状態の情報をもらい、マニピュレータ制御の開始司令を行う
+- ros2 run task_manager manipulator_manager
+
+# task_manager_nodeからロボットの状態の情報をもらい、掃除機のスイッチ制御の開始司令を行う
+- ros2 run task_manager vacuum_manager_node
+
+# 検出したゴミに対して、カメラをスイングしてカメラ画角に入るようにするのと、移動して近づく
+- ros2 run object_chaser object_chaser_node
+### カメラ座標系とロボット座標系のtf
+- ros2 run tf2_ros static_transform_publisher 0.410 -0.0484 0.804 0.0 -0.4625 -2.007 base_link camera_color_optical_frame
+
+# 
+
 ## キーボード入力でモータの角度司令できるノード 
 - ros2 run serial_transciever motor_manual_chokudo_node 
 ### ホース制御に用いる9つのモーター
@@ -46,6 +74,7 @@
 - 7 189.58
 - 8 95.54
 - 9 20.74 -->
+
 
 ## アクティブキャスタの動かし方
 ## terminal1

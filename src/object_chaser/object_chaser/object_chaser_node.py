@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, PointStamped
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
 import math
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
@@ -18,6 +18,7 @@ class ObjectChaserNode(Node):
         # === パブリッシャ ===
         self.cmd_pub = self.create_publisher(Twist, '/chaser/cmd_vel', 10)
         self.camera_swing_pub = self.create_publisher(Float32, '/cameraswingmotor/target_angle', 10)
+        self.completion_pub = self.create_publisher(Bool, '/chaser/approach_completed', 10)
 
         # === サブスクライバ ===
         self.point_sub = self.create_subscription(
@@ -46,6 +47,8 @@ class ObjectChaserNode(Node):
         self.last_detection_time = self.get_clock().now()
         self.timer = self.create_timer(0.1, self.check_timeout)
         self.get_logger().info("Object Chaser Node has been started.")
+
+        self.completion_notified = False
 
     def camera_angle_callback(self, msg: Float32):
         """現在のカメラ角度を常に更新するコールバック"""
@@ -117,7 +120,15 @@ class ObjectChaserNode(Node):
         if abs(distance_error) < self.stop_threshold:
             self.stop_robot()
             self.get_logger().info("Target distance reached.")
+
+            if not self.completion_notified:
+                completion_msg = Bool()
+                completion_msg.data = True
+                self.completion_pub.publish(completion_msg)
+                self.completion_notified = True
             return
+
+        self.completion_notified = False
 
         # 並進速度の計算 (同時制御)
         speed = self.kp_linear * distance_error

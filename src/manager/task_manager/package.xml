@@ -8,7 +8,7 @@
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
+  <depend>hose_control</depend>
   <!-- 依存関係 -->
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
@@ -18,6 +18,8 @@
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_geometry_msgs</depend>
+  <depend>aruco_interfaces</depend> <!-- 追加 -->
+
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

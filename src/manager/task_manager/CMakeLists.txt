@@ -18,6 +18,9 @@ find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(hose_control REQUIRED)
+find_package(aruco_interfaces REQUIRED)
+find_package(target_selector REQUIRED)
 
 # 実行ファイル
 add_executable(task_manager_node src/task_manager_node.cpp)
@@ -31,9 +34,38 @@ ament_target_dependencies(task_manager_node
   tf2_ros
   tf2_geometry_msgs
 )
+add_executable(vacuum_manager_node src/vacuum_manager_node.cpp)
+ament_target_dependencies(vacuum_manager_node
+  rclcpp
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  hose_control
+)
+add_executable(manipulator_manager_node src/manipulator_manager.cpp)
+ament_target_dependencies(manipulator_manager_node
+  rclcpp
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  hose_control
+  aruco_interfaces
+  target_selector
+)
 
 # インストール
-install(TARGETS task_manager_node
+install(TARGETS
+  task_manager_node 
+  vacuum_manager_node
+  manipulator_manager_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

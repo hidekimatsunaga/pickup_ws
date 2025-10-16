@@ -25,6 +25,7 @@ find_package(interactive_markers REQUIRED)
 # include/ ディレクトリを全ターゲットに公開（方法 A）
 include_directories(include)
 include_directories(${EIGEN3_INCLUDE_DIRS})
+ament_export_include_directories(include)
 
 # ────────────────────────────────────────────────────────────────
 # 実行ファイル
