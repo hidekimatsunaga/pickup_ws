@@ -2,13 +2,6 @@ ros2 bag record \
     /aruco/images \
     /aruco/markers \
     /aruco/poses \
-    /camera/camera/color/image_raw \
-    /camera/camera/aligned_depth_to_color/image_raw \
-    /camera/camera/color/camera_info \
-    /camera/camera/aligned_depth_to_color/camera_info \
-    /camera/color/camera_info \
-    /camera/color/image_raw \
-    /camera/depth/color/points \
     /cameraswingmotor/angle \
     /cameraswingmotor/target_angle \
     /chokudomotor/angle \

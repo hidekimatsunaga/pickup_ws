@@ -70,10 +70,9 @@ add_executable(interactive_marker_node src/interactive_marker_node.cpp)
 ament_target_dependencies(interactive_marker_node
   rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs interactive_markers)
 
-
-  add_executable(line_goal_publisher src/line_goal_publisher.cpp)
-  ament_target_dependencies(line_goal_publisher
-    rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs interactive_markers)
+add_executable(line_goal_publisher src/line_goal_publisher.cpp)
+ament_target_dependencies(line_goal_publisher
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs interactive_markers)
   # ────────────────────────────────────────────────────────────────
 # インストール設定
 # ────────────────────────────────────────────────────────────────
@@ -88,6 +87,7 @@ install(TARGETS
   lookup_table_extrapolation
   narrow_space_controll_node
   interactive_marker_node
+  line_goal_publisher
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/ DESTINATION include)

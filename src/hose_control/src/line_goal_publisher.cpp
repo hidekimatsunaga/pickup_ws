@@ -1,6 +1,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <cmath>
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 class LineGoalPublisher : public rclcpp::Node
 {
@@ -11,16 +14,16 @@ public:
     // Publisherの作成
     goal_point_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/hose/goal_point", 10);
 
-    // タイマー（0.1秒ごとに更新）
+    // タイマー（1秒ごとに更新）
     timer_ = this->create_wall_timer(100ms, std::bind(&LineGoalPublisher::timerCallback, this));
 
     // 直線軌道の始点・終点設定
-    start_x_ = 0.0;
-    start_y_ = 0.0;
-    start_z_ = 0.0;
-    end_x_ = 1.0;
-    end_y_ = 0.0;
-    end_z_ = 0.5;
+    start_x_ = -0.3;
+    start_y_ = -0.06;
+    start_z_ = 0.9;
+    end_x_ = 0.3;
+    end_y_ = -0.06;
+    end_z_ = 0.9;
 
     RCLCPP_INFO(this->get_logger(), "LineGoalPublisher started. Publishing /hose/goal_point along a straight line.");
   }
