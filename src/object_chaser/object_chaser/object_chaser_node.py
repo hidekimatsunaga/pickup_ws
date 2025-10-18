@@ -35,8 +35,8 @@ class ObjectChaserNode(Node):
         self.stop_threshold = 0.05      # 停止判定の許容誤差 [m]
         self.kp_linear = 0.6            # 距離に対する比例ゲイン
         self.kp_angular = 0.1           # 角度に対する比例ゲイン
-        self.max_linear_speed = 0.3     # 最大並進速度 [m/s]
-        self.max_angular_speed = 0.8    # 最大旋回速度 [rad/s]
+        self.max_linear_speed = 0.1     # 最大並進速度 [m/s]
+        self.max_angular_speed = 0.1   # 最大旋回速度 [rad/s]
         
         # === 制御パラメータ (カメラ追従) ===
         self.kp_camera_swing = -1.0     # 角度(rad)ベースの比例ゲイン (要調整！)
@@ -81,7 +81,7 @@ class ObjectChaserNode(Node):
             return
             
         # Zが0に近い(近すぎる)場合は計算しない
-        if abs(z_pos) < 0.1:
+        if abs(z_pos) < 0.6:
             return
 
         # YとZから、カメラ正面からの垂直方向の角度ズレを計算 (結果はラジアン)

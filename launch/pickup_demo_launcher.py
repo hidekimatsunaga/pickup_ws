@@ -21,7 +21,7 @@ def generate_launch_description():
         ),
         Node(
             package='task_manager',
-            executable='manipulator_manager',
+            executable='manipulator_manager_node',
             name='manipulator_manager',
         ),
         Node(
@@ -32,17 +32,12 @@ def generate_launch_description():
         Node(
             package='serial_transciever',
             executable='chokudo_cameraswing_air_serial_node',
-            name='angle_chokudo_node',
-        ),
-        Node(
-            package='hose_control',
-            executable='feedback_goal_position_node',
-            name='feedback_goal_position_node',
+            name='chokudo_cameraswing_air_serial_node',
         ),
         Node(
             package='target_selector',
-            executable='target_selector_node_exe ',
-            name='target_selector_node_exe',
+            executable='target_selector_node_exe',
+            name='target_selector_node',
         ),
         Node(
             package='hose_control',

@@ -2,8 +2,9 @@
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/bool.hpp>
-#include <std_msgs/msg/string.hpp>                       // ← 変更: String型を使うために追加
+#include <std_msgs/msg/string.hpp>
 #include <cmath>
+#include <chrono> // ← 追加
 #include <hose_control/motor_initial_position.hpp>
 #include <hose_control/motor_pickup_position.hpp>
 
@@ -15,9 +16,9 @@ public:
     stop_angles_(motor_sequences::pickup_sequence.back()),
     stop_motor10_angle_(54.0f)
   {
-    tolerance_       = this->declare_parameter("tolerance", 80.0);
-    tolerance10_     = this->declare_parameter("tolerance10", 80.0);
-    min_on_interval_ = this->declare_parameter("min_on_interval", 0.5);
+    tolerance_   = this->declare_parameter("tolerance", 40.0);
+    tolerance10_ = this->declare_parameter("tolerance10", 0.0);
+    on_delay_    = this->declare_parameter("on_delay", 5); // 吸引ONまでの遅延時間 (秒)
 
     flag_pub_ = this->create_publisher<std_msgs::msg::Bool>("/vacuum_flag", 10);
 
@@ -29,13 +30,11 @@ public:
       "/chokudomotor/angle", 10,
       std::bind(&VacuumManagerNode::motor10_cb, this, std::placeholders::_1));
 
-    // ← 変更: /start_grasp の代わりに /robot/state を購読する
     state_sub_ = this->create_subscription<std_msgs::msg::String>(
       "/robot/state", 10,
       std::bind(&VacuumManagerNode::state_cb, this, std::placeholders::_1));
 
-
-    RCLCPP_INFO(get_logger(), "VacuumManagerNode started (tol = %.2f deg)", tolerance_);
+    RCLCPP_INFO(get_logger(), "VacuumManagerNode started (tol = %.2f deg, on_delay = %.2f s)", tolerance_, on_delay_);
   }
 
 private:
@@ -47,7 +46,6 @@ private:
       return;
     }
     latest_9_ = *msg;
-    maybe_publish_on();
     check_and_publish();
   }
 
@@ -55,22 +53,29 @@ private:
   {
     latest_10_ = *msg;
     has_10_    = true;
-    maybe_publish_on();
     check_and_publish();
   }
 
-  // ← 変更: arm_cb の代わりに state_cb を実装
   void state_cb(const std_msgs::msg::String::SharedPtr msg)
   {
-    // 状態が "collecting" になったら吸引ONの準備をする
+    // 状態が "collecting" になったらタイマーを開始する
     if (msg->data == "collecting") {
-      armed_ = true;
+      // もし既にタイマーが動いていたら、一度キャンセルしてリセットする
+      if (suction_on_timer_ && !suction_on_timer_->is_canceled()) {
+        suction_on_timer_->cancel();
+      }
       on_latched_ = false;  // 新しい吸引サイクルを開始できるようにラッチを解除
-      RCLCPP_INFO(get_logger(), "State is 'collecting': Armed for suction ON");
+
+      RCLCPP_INFO(get_logger(), "State is 'collecting': Suction will turn ON in %.2f seconds.", on_delay_);
+
+      // 指定時間後に turn_suction_on() を1回だけ呼び出すタイマーを作成
+      suction_on_timer_ = this->create_wall_timer(
+        std::chrono::duration<double>(on_delay_),
+        std::bind(&VacuumManagerNode::turn_suction_on, this));
     }
   }
 
-  // ---------- 判定 ----------
+  // ---------- 判定と処理 ----------
   void check_and_publish()
   {
     if (!has_10_ || latest_9_.data.empty()) return;
@@ -87,46 +92,45 @@ private:
     latest_9_.data.clear();
     has_10_ = false;
     on_latched_ = false;
-    armed_ = false;
     RCLCPP_INFO(get_logger(), "All 10 motors reached stop angles → suction_flag=false");
   }
 
-  void maybe_publish_on()
+  void turn_suction_on()
   {
-    if (on_latched_ || !armed_) return; // ON済みか、準備ができていなければ何もしない
+    // タイマーは一度きりなので、キャンセルして止める
+    if (suction_on_timer_) {
+        suction_on_timer_->cancel();
+    }
 
-    const auto now = this->get_clock()->now();
-    if (last_on_time_.nanoseconds() != 0) {
-      const double dt = (now - last_on_time_).seconds();
-      if (dt < min_on_interval_) return;
+    // 既にONになっていれば何もしない
+    if (on_latched_) {
+      return;
     }
 
     std_msgs::msg::Bool msg;
     msg.data = true;
     flag_pub_->publish(msg);
     on_latched_ = true;
-    last_on_time_ = now;
-    armed_ = false; // トリガーは使い切り
-    RCLCPP_INFO(get_logger(), "suction_flag=true (one-shot ON)");
+    RCLCPP_INFO(get_logger(), "Timer fired: suction_flag=true");
   }
 
   // ---------- メンバ ----------
   double tolerance_;
   double tolerance10_;
-  double min_on_interval_;
+  double on_delay_; // ← 変更
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr flag_pub_;
 
   rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_9_;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr           sub_10_;
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr            state_sub_; // ← 変更
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr            state_sub_;
+
+  rclcpp::TimerBase::SharedPtr suction_on_timer_; // ← 追加
 
   std_msgs::msg::Float32MultiArray latest_9_;
   std_msgs::msg::Float32           latest_10_;
   bool has_10_{false};
-
   bool on_latched_{false};
-  bool armed_{false};
-  rclcpp::Time last_on_time_;
+
   const std::vector<float> stop_angles_;
   const float stop_motor10_angle_;
 };
