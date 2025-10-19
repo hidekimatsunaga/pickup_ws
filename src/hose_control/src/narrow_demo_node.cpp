@@ -23,7 +23,7 @@ public:
     pub_motor1_9_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", qos);
     pub_motor10_ = this->create_publisher<std_msgs::msg::Float32>("/chokudomotor/target_angle", 10);
 
-    RCLCPP_INFO(this->get_logger(), "Node started. Press Enter to proceed to the next sequence step.");
+    RCLCPP_INFO(this->get_logger(), "Node started. Press keys: [n] next, [b] back, [q] quit");
 
     // キーボード入力監視スレッドを開始
     input_thread_ = std::thread([this]() { this->keyboardLoop(); });
@@ -38,18 +38,38 @@ private:
   std::thread input_thread_;
 
   void keyboardLoop() {
+    char input;
     while (rclcpp::ok()) {
-      std::cout << "Press Enter to move to next step (" << sequence_step_ + 1 
-                << "/" << sequence_data_.size() << ")..." << std::endl;
-      std::cin.get();  // Enterキー待機
-      if (!rclcpp::ok()) break;
-      publishSequenceStep();
+      std::cout << "\n[n] Next  [b] Back  [q] Quit  → ";
+      std::cin >> input;
+
+      if (input == 'n') {
+        publishSequenceStep(+1);
+      } else if (input == 'b') {
+        publishSequenceStep(-1);
+      } else if (input == 'q') {
+        RCLCPP_INFO(this->get_logger(), "Exiting program...");
+        rclcpp::shutdown();
+        break;
+      } else {
+        std::cout << "Invalid key. Use [n], [b], or [q]." << std::endl;
+      }
     }
   }
 
-  void publishSequenceStep() {
+  void publishSequenceStep(int direction) {
+    // direction = +1: forward, -1: backward
+    sequence_step_ += direction;
+
+    // 範囲チェック
+    if (sequence_step_ < 0) {
+      sequence_step_ = 0;
+      RCLCPP_WARN(this->get_logger(), "Already at the first step.");
+      return;
+    }
     if (static_cast<size_t>(sequence_step_) >= sequence_data_.size()) {
-      RCLCPP_INFO(this->get_logger(), "Sequence finished. No more steps.");
+      sequence_step_ = sequence_data_.size() - 1;
+      RCLCPP_WARN(this->get_logger(), "Already at the last step.");
       return;
     }
 
@@ -72,8 +92,6 @@ private:
     pub_motor10_->publish(motor10_msg);
 
     RCLCPP_INFO(this->get_logger(), "Published motor 1-9 and motor 10 (%.2f)", motor10_msg.data);
-
-    sequence_step_++;
   }
 };
 
