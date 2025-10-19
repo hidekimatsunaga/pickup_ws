@@ -15,7 +15,7 @@ public:
     sequence_step_(0)
   {
     // ヘッダーファイルからシーケンスデータをコピー
-    sequence_data_ = motor_sequences::pickup_sequence;
+    sequence_data_ = motor_sequences::narrow_sequence;
 
     // --- Subscription ---
     current_angles_sub_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
