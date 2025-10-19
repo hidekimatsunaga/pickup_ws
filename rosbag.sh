@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ros2 bag record \
     /aruco/images \
     /aruco/markers \
@@ -23,3 +25,6 @@ ros2 bag record \
     /sensor/pressure \
     /start_grasp \
     /vacuum_flag \
+    --compression-mode file \
+    --compression-format zstd \
+    -o ~/bags/record_$(date +%Y%m%d_%H%M%S)

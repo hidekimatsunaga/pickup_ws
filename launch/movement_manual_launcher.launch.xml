@@ -1,0 +1,27 @@
+<launch>
+    <!-- teleop_twist_joy の起動 -->
+    <include file="$(find-pkg-share teleop_twist_joy)/launch/teleop-launch.py">
+        <arg name="config_filepath" value="/home/matsunaga-h/clean_ws/config/f310.config.yaml"/>
+        <arg name="joy_vel" value="cmd_vel"/> 
+    </include>
+
+    <!-- om_modbus_master の起動 -->
+    <include file="$(find-pkg-share om_modbus_master)/launch/om_modbus_master_launch.py">
+        <arg name="com" value="/dev/serial/by-id/usb-FTDI_USB-RS485_Cable_FT7E9M3C-if00-port0"/>
+        <arg name="topicID" value="0"/>
+        <arg name="baudrate" value="230400"/>
+        <arg name="updateRate" value="100"/>
+        <arg name="secondGen" value="1,2,3"/>
+        <arg name="globalID" value="10"/>
+        <arg name="axisNum" value="3"/>
+    </include>
+
+    <!-- Pythonスクリプト実行 -->
+    <executable cmd="python3 /home/matsunaga-h/pickup_ws/src/movement/om_modbus_master_V201/om_modbus_master/sample/BLV_R/drive_motor.py" output="screen"/>
+
+    <!-- 各ノードの起動 -->
+    <node pkg="dynamixel_sdk_examples" exec="read_write_node" name="read_write_node" output="screen"/>
+    <node pkg="robot_motor2" exec="steer_motor_node" name="steer_motor_node" output="screen"/>
+    <node pkg="robot_motor2" exec="cmd_vel_to_motor_node" name="cmd_vel_to_motor_node" output="screen"/>
+    <node pkg="robot_motor2" exec="robot_odom_node" name="robot_odom_node" output="screen"/>
+</launch>
