@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/float32.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <vector>
 #include <string>
 #include <cmath>
@@ -20,13 +21,13 @@ public:
 
     // --- Publisher ---
     auto qos = rclcpp::QoS(rclcpp::KeepLast(50)).reliable();
-    pub_motor1_9_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", qos);
-    pub_motor10_ = this->create_publisher<std_msgs::msg::Float32>("/chokudomotor/target_angle", 10);
+    pub_motor1_9_   = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", qos);
+    pub_motor10_    = this->create_publisher<std_msgs::msg::Float32>("/chokudomotor/target_angle", 10);
+    pub_robot_state_ = this->create_publisher<std_msgs::msg::String>("/robot/state", 10);
 
     RCLCPP_INFO(this->get_logger(), "Node started. Press keys: [n] next, [b] back, [q] quit");
-    // publishSequenceStep(0);  // 👈 起動時にステップ0を実行
 
-    // キーボード入力監視スレッドを開始
+    // キーボード入力監視スレッド
     input_thread_ = std::thread([this]() { this->keyboardLoop(); });
     input_thread_.detach();
   }
@@ -34,10 +35,13 @@ public:
 private:
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_motor1_9_;
   rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_motor10_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_robot_state_;
+
   std::vector<std::vector<float>> sequence_data_;
   int sequence_step_;
   std::thread input_thread_;
 
+  // ---------- キーボード入力 ----------
   void keyboardLoop() {
     char input;
     while (rclcpp::ok()) {
@@ -57,18 +61,18 @@ private:
       }
     }
   }
+
+  // ---------- シーケンス送信 ----------
   void publishSequenceStep(int direction) {
-    // 変更点2: 複雑なif文を削除し、常にステップを更新する
     sequence_step_ += direction;
 
-    // --- 範囲チェック ---
     if (sequence_data_.empty()) {
       RCLCPP_ERROR(this->get_logger(), "Sequence data is empty!");
       return;
     }
 
     if (sequence_step_ < 0) {
-      sequence_step_ = -1; // -1より小さくはならないようにする
+      sequence_step_ = -1;
       RCLCPP_WARN(this->get_logger(), "At the beginning. Press 'n' to start.");
       return;
     }
@@ -79,7 +83,6 @@ private:
       return;
     }
 
-    // --- データの取得と送信 ---
     const auto &target_angles_all = sequence_data_[sequence_step_];
     if (target_angles_all.size() < 10) {
       RCLCPP_ERROR(this->get_logger(), "Sequence step %d has less than 10 values!", sequence_step_);
@@ -90,15 +93,25 @@ private:
                 "Publishing sequence step %d / %zu.",
                 sequence_step_, sequence_data_.size() - 1);
 
+    // --- Motor 1-9 publish ---
     std_msgs::msg::Float32MultiArray motor1_9_msg;
     motor1_9_msg.data.assign(target_angles_all.begin(), target_angles_all.begin() + 9);
     pub_motor1_9_->publish(motor1_9_msg);
 
+    // --- Motor 10 publish ---
     std_msgs::msg::Float32 motor10_msg;
     motor10_msg.data = target_angles_all[9];
     pub_motor10_->publish(motor10_msg);
 
     RCLCPP_INFO(this->get_logger(), "Published motor 1-9 and motor 10 (%.2f)", motor10_msg.data);
+
+    // --- ✅ 最終ステップ到達時に /robot/state = "collecting" を送信 ---
+    if (sequence_step_ == static_cast<int>(sequence_data_.size()) - 1) {
+      std_msgs::msg::String state_msg;
+      state_msg.data = "collecting";
+      pub_robot_state_->publish(state_msg);
+      RCLCPP_INFO(this->get_logger(), "Final step reached → Published /robot/state = 'collecting'");
+    }
   }
 };
 
