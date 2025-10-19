@@ -15,8 +15,8 @@ def generate_launch_description():
             name='flag_relay_bridge',
         ),
         Node(
-            package='hose_control',
-            executable='flag_manager',
-            name='flag_manager',
-        )
+            package='task_manager',
+            executable='vacuum_manager_node',
+            name='vacuum_manager_node',
+        ),
     ])

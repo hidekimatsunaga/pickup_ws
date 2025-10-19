@@ -13,7 +13,7 @@ class AutoSequenceNode : public rclcpp::Node {
 public:
   AutoSequenceNode()
   : Node("auto_sequence_node"),
-    sequence_step_(0)
+    sequence_step_(-1)
   {
     // ヘッダーファイルからシーケンスデータをコピー
     sequence_data_ = motor_sequences::narrow_sequence;
@@ -24,6 +24,7 @@ public:
     pub_motor10_ = this->create_publisher<std_msgs::msg::Float32>("/chokudomotor/target_angle", 10);
 
     RCLCPP_INFO(this->get_logger(), "Node started. Press keys: [n] next, [b] back, [q] quit");
+    // publishSequenceStep(0);  // 👈 起動時にステップ0を実行
 
     // キーボード入力監視スレッドを開始
     input_thread_ = std::thread([this]() { this->keyboardLoop(); });
@@ -56,37 +57,43 @@ private:
       }
     }
   }
-
   void publishSequenceStep(int direction) {
-    // direction = +1: forward, -1: backward
+    // 変更点2: 複雑なif文を削除し、常にステップを更新する
     sequence_step_ += direction;
 
-    // 範囲チェック
-    if (sequence_step_ < 0) {
-      sequence_step_ = 0;
-      RCLCPP_WARN(this->get_logger(), "Already at the first step.");
+    // --- 範囲チェック ---
+    if (sequence_data_.empty()) {
+      RCLCPP_ERROR(this->get_logger(), "Sequence data is empty!");
       return;
     }
+
+    if (sequence_step_ < 0) {
+      sequence_step_ = -1; // -1より小さくはならないようにする
+      RCLCPP_WARN(this->get_logger(), "At the beginning. Press 'n' to start.");
+      return;
+    }
+
     if (static_cast<size_t>(sequence_step_) >= sequence_data_.size()) {
       sequence_step_ = sequence_data_.size() - 1;
       RCLCPP_WARN(this->get_logger(), "Already at the last step.");
       return;
     }
 
-    const auto& target_angles_all = sequence_data_[sequence_step_];
+    // --- データの取得と送信 ---
+    const auto &target_angles_all = sequence_data_[sequence_step_];
     if (target_angles_all.size() < 10) {
       RCLCPP_ERROR(this->get_logger(), "Sequence step %d has less than 10 values!", sequence_step_);
       return;
     }
 
-    RCLCPP_INFO(this->get_logger(), "Publishing sequence step %d.", sequence_step_);
+    RCLCPP_INFO(this->get_logger(),
+                "Publishing sequence step %d / %zu.",
+                sequence_step_, sequence_data_.size() - 1);
 
-    // モーター1-9
     std_msgs::msg::Float32MultiArray motor1_9_msg;
     motor1_9_msg.data.assign(target_angles_all.begin(), target_angles_all.begin() + 9);
     pub_motor1_9_->publish(motor1_9_msg);
 
-    // モーター10
     std_msgs::msg::Float32 motor10_msg;
     motor10_msg.data = target_angles_all[9];
     pub_motor10_->publish(motor10_msg);

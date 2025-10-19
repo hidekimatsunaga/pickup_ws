@@ -140,17 +140,17 @@ def generate_launch_description():
         condition=UnlessCondition(LaunchConfiguration('use_depth_input'))
     )
 
-    rviz_file = PathJoinSubstitution([
-        FindPackageShare('aruco_pose_estimation'),
-        'rviz',
-        'cam_detect.rviz'
-    ])
+    # rviz_file = PathJoinSubstitution([
+    #     FindPackageShare('aruco_pose_estimation'),
+    #     'rviz',
+    #     'cam_detect.rviz'
+    # ])
 
-    rviz2_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        arguments=['-d', rviz_file]
-    )
+    # rviz2_node = Node(
+    #     package='rviz2',
+    #     executable='rviz2',
+    #     arguments=['-d', rviz_file]
+    # )
 
     return LaunchDescription([
         # Arguments
@@ -169,5 +169,5 @@ def generate_launch_description():
         aruco_node, 
         camera_feed_depth_node,
         camera_feed_node,
-        rviz2_node
+        # rviz2_node
     ])
