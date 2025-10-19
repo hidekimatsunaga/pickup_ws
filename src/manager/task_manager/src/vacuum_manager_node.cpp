@@ -30,8 +30,8 @@ public:
 
     // --- パラメータ ---
     tolerance_   = this->declare_parameter("tolerance", 40.0);
-    tolerance10_ = this->declare_parameter("tolerance10", 0.0);
-    on_delay_    = this->declare_parameter("on_delay", 5.0);
+    tolerance10_ = this->declare_parameter("tolerance10", 50.0);
+    on_delay_    = this->declare_parameter("on_delay", 0.1);
 
     // --- Publisher ---
     flag_pub_ = this->create_publisher<std_msgs::msg::Bool>("/vacuum_flag", 10);
