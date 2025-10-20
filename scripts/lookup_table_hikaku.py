@@ -10,8 +10,8 @@ end_point   = {'x': 0.3,  'y': -0.06, 'z': 0.9}
 # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 # --- 1. 読み込むCSVファイルのリストを定義 ---
 csv_files = [
-    '/home/matsunaga-h/pickup_ws/rosbag/nearest_/aruco_motor_log_1019_022132.csv',
-    '/home/matsunaga-h/pickup_ws/rosbag/lookup_table/aruco_motor_log_1019_021952.csv',  # 2つ目のファイルパス
+    '/home/matsunaga-h/pickup_ws/rosbag/lookup_table/lookuptable_cleaned.csv',
+    '/home/matsunaga-h/pickup_ws/rosbag/nearest_/nearest_cleaned.csv',  # 2つ目のファイルパス
 ]
 
 # --- 2. 各グラフの色を定義 ---

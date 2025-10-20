@@ -95,7 +95,7 @@ correct_z = 0.72
 # df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0718_183109_cleaned_file.csv', header=None, skiprows=1)
 # df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0921_175729.csv', header=None, skiprows=1)
 # df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0928_161517.csv', header=None, skiprows=1)
-df = pd.read_csv('/home/matsunaga-h/pickup_ws/rosbag/lookup_table/aruco_motor_log_1019_021952.csv', header=None, skiprows=1)
+df = pd.read_csv('/home/matsunaga-h/pickup_ws/rosbag/lookup_table/aruco_motor_log_1020_125332_cleaned.csv', header=None, skiprows=1)
 
 # 位置情報のみ抽出（x, y, z）
 position = df.iloc[:, 12:15].astype(float)
