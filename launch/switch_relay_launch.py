@@ -14,9 +14,9 @@ def generate_launch_description():
             executable='flag_relay_bridge',
             name='flag_relay_bridge',
         ),
-        Node(
-            package='task_manager',
-            executable='vacuum_manager_node',
-            name='vacuum_manager_node',
-        ),
+        # Node(
+        #     package='task_manager',
+        #     executable='vacuum_manager_node',
+        #     name='vacuum_manager_node',
+        # ),
     ])
