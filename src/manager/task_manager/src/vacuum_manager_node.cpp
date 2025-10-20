@@ -5,6 +5,8 @@
 #include <std_msgs/msg/string.hpp>
 #include <cmath>
 #include <chrono>
+#include <thread>
+#include <iostream>
 #include <hose_control/motor_initial_position.hpp>
 #include <hose_control/motor_pickup_position.hpp>
 #include "hose_control/narrow_space_controll_position.hpp"
@@ -23,9 +25,7 @@ public:
       throw std::runtime_error("Invalid sequence size");
     }
 
-    // 1〜9軸の停止角度
     stop_angles_.assign(last_seq.begin(), last_seq.begin() + 9);
-    // 10軸（直動）の停止角度
     stop_motor10_angle_ = last_seq[9];
 
     // --- パラメータ ---
@@ -52,10 +52,14 @@ public:
     RCLCPP_INFO(this->get_logger(),
       "VacuumManagerNode started (tol=%.1f, tol10=%.1f, on_delay=%.1fs, stop_motor10=%.2f)",
       tolerance_, tolerance10_, on_delay_, stop_motor10_angle_);
+
+    // --- ✅ 手動操作スレッド起動 ---
+    input_thread_ = std::thread([this]() { keyboardLoop(); });
+    input_thread_.detach();
   }
 
 private:
-  // --- コールバック ---
+  // --- コールバック群 ---
   void multi_cb(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
   {
     if (msg->data.size() != stop_angles_.size()) {
@@ -118,6 +122,37 @@ private:
     RCLCPP_INFO(get_logger(), "Timer fired → suction_flag=true");
   }
 
+  // --- ✅ キーボード入力ループ ---
+  void keyboardLoop()
+  {
+    char key;
+    while (rclcpp::ok()) {
+      std::cout << "\n[o] ON  [f] OFF  [q] Quit → ";
+      std::cin >> key;
+
+      std_msgs::msg::Bool msg;
+
+      if (key == 'o') {
+        msg.data = true;
+        flag_pub_->publish(msg);
+        RCLCPP_INFO(this->get_logger(), "Manual: suction_flag = true (ON)");
+      } 
+      else if (key == 'f') {
+        msg.data = false;
+        flag_pub_->publish(msg);
+        RCLCPP_INFO(this->get_logger(), "Manual: suction_flag = false (OFF)");
+      } 
+      else if (key == 'q') {
+        RCLCPP_INFO(this->get_logger(), "Manual exit requested.");
+        rclcpp::shutdown();
+        break;
+      } 
+      else {
+        std::cout << "Invalid input. Use [o], [f], or [q]." << std::endl;
+      }
+    }
+  }
+
   // --- メンバ変数 ---
   double tolerance_;
   double tolerance10_;
@@ -135,6 +170,7 @@ private:
   std_msgs::msg::Float32 latest_10_;
   bool has_10_{false};
   bool on_latched_{false};
+  std::thread input_thread_;
 };
 
 int main(int argc, char **argv) {
