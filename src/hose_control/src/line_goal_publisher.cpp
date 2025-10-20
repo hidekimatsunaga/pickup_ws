@@ -32,7 +32,7 @@ private:
   void timerCallback()
   {
     // t_を0〜1の範囲でループ
-    t_ += 0.01;
+    t_ += 0.001;
     if (t_ > 1.0) t_ = 0.0;
 
     // 直線補間 (Lerp)
