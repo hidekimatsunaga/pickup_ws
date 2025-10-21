@@ -78,6 +78,8 @@ class PCCMeasureRecorder(Node):
             f"PCCMeasureRecorder ready. csv='{self.csv_path}', unify_frame='{self.unify_frame}', "
             f"idx={self.motor_idx}, camera_frame='{self.cam_frame}', base_id={self.base_id}, tip_id={self.tip_id}"
         )
+        self._last_log_times = {}  # throttle用
+
 
     # ---------- subscribers ----------
     def cb_markers(self, msg: ArucoMarkers):
@@ -139,7 +141,7 @@ class PCCMeasureRecorder(Node):
             pU = self.T_BC @ pC
         else:
             # それ以外は未対応（必要なら拡張）
-            self.get_logger().warn_throttle(2.0, f"unify_frame '{self.unify_frame}' unsupported; skip")
+            self._log_throttle('warn', 'tip_not_visible', "tip(id=0) not visible; skip", 2.0)
             return False
 
         # 取り出すモータ角（指定 index）
@@ -176,6 +178,23 @@ class PCCMeasureRecorder(Node):
             cols += [f"z{idx}" for idx in self.motor_idx]
             w.writerow(cols)
         self.get_logger().info(f"CSV header written to {self.csv_path}")
+
+    def _log_throttle(self, level: str, key: str, msg: str, period_sec: float = 2.0):
+        """
+        level: 'debug'|'info'|'warn'|'error'
+        key:   同じメッセージ系列をまとめる識別子
+        """
+        now = self.get_clock().now().nanoseconds * 1e-9
+        last = self._last_log_times.get(key, 0.0)
+        if now - last < period_sec:
+            return
+        self._last_log_times[key] = now
+        logger = self.get_logger()
+        if   level == 'debug': logger.debug(msg)
+        elif level == 'info':  logger.info(msg)
+        elif level == 'warn':  logger.warn(msg)
+        else:                  logger.error(msg)
+
 
 def main():
     rclpy.init()
