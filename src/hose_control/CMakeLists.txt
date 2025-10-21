@@ -78,6 +78,10 @@ add_executable(narrow_demo_node src/narrow_demo_node.cpp)
 ament_target_dependencies(narrow_demo_node
   rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs interactive_markers)
    
+add_executable(absolute_angle_lut_node src/absolute_angle_lut_node.cpp)
+ament_target_dependencies(absolute_angle_lut_node
+  rclcpp std_msgs geometry_msgs Eigen3 aruco_interfaces vision_msgs visualization_msgs interactive_markers)
+   
 # ────────────────────────────────────────────────────────────────
 # インストール設定
 # ────────────────────────────────────────────────────────────────
@@ -94,6 +98,7 @@ install(TARGETS
   interactive_marker_node
   line_goal_publisher
   narrow_demo_node
+  absolute_angle_lut_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/ DESTINATION include)

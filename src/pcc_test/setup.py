@@ -27,6 +27,7 @@ setup(
             'pcc_move_node = pcc_test.pcc_move_node:main',
             'pcc_visualizer_node = pcc_test.pcc_visualizer_node:main',
             'pcc_target_publisher = pcc_test.pcc_target_publisher:main',
+            'lut_measure_recorder = pcc_test.lut_measure_recorder:main',
         ],
     },
 )
