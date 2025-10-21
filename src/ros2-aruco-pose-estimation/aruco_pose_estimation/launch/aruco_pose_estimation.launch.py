@@ -127,6 +127,19 @@ def generate_launch_description():
             "align_depth.enable": "true",
             "enable_color": "true",
             "enable_depth": "true",
+            # ▼ 解像度 / FPS
+            "rgb_camera.color_profile": "1280x720x30",    # 720p30
+            "depth_module.depth_profile": "640x480x30",   # 640x480x30 など
+
+            # ▼ カラー露出（まずはオートOFF）
+            "rgb_camera.enable_auto_exposure": "false",
+            # （対応していれば）固定値も
+            "rgb_camera.exposure": "120",   # 例: 120
+            "rgb_camera.gain": "64",
+
+            # ▼ 深度側の露出（深度を使うときだけ）
+            "depth_module.enable_auto_exposure": "false",
+            "depth_module.exposure": "8500"
         }.items(),
         condition=IfCondition(LaunchConfiguration('use_depth_input'))
     )
@@ -140,17 +153,17 @@ def generate_launch_description():
         condition=UnlessCondition(LaunchConfiguration('use_depth_input'))
     )
 
-    # rviz_file = PathJoinSubstitution([
-    #     FindPackageShare('aruco_pose_estimation'),
-    #     'rviz',
-    #     'cam_detect.rviz'
-    # ])
+    rviz_file = PathJoinSubstitution([
+        FindPackageShare('aruco_pose_estimation'),
+        'rviz',
+        'cam_detect.rviz'
+    ])
 
-    # rviz2_node = Node(
-    #     package='rviz2',
-    #     executable='rviz2',
-    #     arguments=['-d', rviz_file]
-    # )
+    rviz2_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        arguments=['-d', rviz_file]
+    )
 
     return LaunchDescription([
         # Arguments
@@ -169,5 +182,5 @@ def generate_launch_description():
         aruco_node, 
         camera_feed_depth_node,
         camera_feed_node,
-        # rviz2_node
+        rviz2_node
     ])
