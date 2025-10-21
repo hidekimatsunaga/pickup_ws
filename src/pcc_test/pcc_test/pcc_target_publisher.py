@@ -4,90 +4,173 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PointStamped
 from builtin_interfaces.msg import Time
+from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+
+def _now(node: Node) -> Time:
+    return node.get_clock().now().to_msg()
 
 class PCCTargetPublisher(Node):
     """
-    目標先端位置を /pcc_target へ送るユーティリティノード。
+    /pcc_target に PointStamped を順次 publish して実験できるノード。
 
     モード:
-      - mode='once'        : 起動時に1回だけ publish
-      - mode='continuous'  : hz で周期 publish
-      - mode='from_click'  : RViz の /clicked_point を受け取り中継 publish
+      - mode='sequence' : 任意の点列を順に送る（points_xyz_flat で与える）
+      - mode='sweep'    : 1軸スイープ（center を基準に axis を start→stop）
+      - mode='grid'     : 2軸グリッド（center の周りに格子状）
 
-    フレーム:
-      - frame_id: 'base' or 'camera_color_optical_frame' など
-      - from_click の場合、force_frame_id=True なら header.frame_id を上書き
+    各点は dwell_sec 秒キープ。その間 publish_hz で連続送信（安定のため）。
+    端までいったら loop=true なら繰り返す。
     """
+
     def __init__(self):
         super().__init__('pcc_target_publisher')
 
-        # ---- parameters ----
-        self.declare_parameter('mode', 'once')  # 'once' | 'continuous' | 'from_click'
+        # ---- パラメータ宣言（型を最初に確定！）----
         self.declare_parameter('frame_id', 'base')
-        self.declare_parameter('x', 0.20)   # m
-        self.declare_parameter('y', 0.00)   # m
-        self.declare_parameter('z', 0.30)   # m
-        self.declare_parameter('hz', 10.0)  # mode=continuous の送信周期
-        self.declare_parameter('force_frame_id', True)  # from_click の frame_id 上書き
+        self.declare_parameter('mode', 'sequence')         # 'sequence' | 'sweep' | 'grid'
+        self.declare_parameter('publish_hz', 10.0)
+        self.declare_parameter('dwell_sec', 1.0)
+        self.declare_parameter('loop', True)
 
-        self.mode = self.get_parameter('mode').value.lower()
-        self.frame_id = self.get_parameter('frame_id').value
-        self.target = [float(self.get_parameter('x').value),
-                       float(self.get_parameter('y').value),
-                       float(self.get_parameter('z').value)]
-        self.hz = float(self.get_parameter('hz').value)
-        self.force_frame = bool(self.get_parameter('force_frame_id').value)
+        # DOUBLE_ARRAY で明示（★ここ重要：一度だけ宣言）
+        double_array_desc = ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE_ARRAY)
+        self.declare_parameter('points_xyz_flat', [0.0,0.0,0.0], descriptor=double_array_desc)
+
+        # sweep 用
+        self.declare_parameter('center', [0.20, 0.00, 0.30])  # [x,y,z]
+        self.declare_parameter('axis', 'x')                   # 'x' | 'y' | 'z'
+        self.declare_parameter('start', -0.02)
+        self.declare_parameter('stop', 0.02)
+        self.declare_parameter('steps', 5)
+
+        # grid 用
+        self.declare_parameter('grid_axis1', 'x')
+        self.declare_parameter('grid_axis2', 'z')
+        self.declare_parameter('grid_span1', 0.04)
+        self.declare_parameter('grid_span2', 0.04)
+        self.declare_parameter('grid_steps1', 5)
+        self.declare_parameter('grid_steps2', 5)
+        self.declare_parameter('grid_snake', True)
+
+        # ---- 取得 ----
+        self.frame_id   = self.get_parameter('frame_id').value
+        self.mode       = self.get_parameter('mode').value.lower()
+        self.publish_hz = float(self.get_parameter('publish_hz').value)
+        self.dwell_sec  = float(self.get_parameter('dwell_sec').value)
+        self.loop       = bool(self.get_parameter('loop').value)
 
         self.pub = self.create_publisher(PointStamped, '/pcc_target', 10)
 
-        if self.mode == 'from_click':
-            # RViz: "Publish Point" ツールは /clicked_point に PointStamped を出す
-            self.sub = self.create_subscription(PointStamped, '/clicked_point',
-                                                self.cb_clicked_point, 10)
-            self.get_logger().info(
-                f"[from_click] forwarding /clicked_point -> /pcc_target "
-                f"(force_frame_id={self.force_frame}, frame_id='{self.frame_id}')")
-        elif self.mode == 'continuous':
-            dt = max(1e-3, 1.0 / max(1e-6, self.hz))
-            self.timer = self.create_timer(dt, self.on_timer)
-            self.get_logger().info(
-                f"[continuous] publishing {self.target} in frame '{self.frame_id}' at {self.hz} Hz")
+        # 点列生成
+        self.points = self._build_points()
+        if not self.points:
+            self.get_logger().error('No points to publish. Check parameters.')
+            self.points = [(0.0, 0.0, 0.0)]
+
+        # 実行状態
+        self.idx = 0
+        self.last_switch_time = self.get_clock().now()
+
+        # タイマ（連続publish & dwell管理）
+        period = max(1e-3, 1.0 / max(1e-6, self.publish_hz))
+        self.timer = self.create_timer(period, self._on_timer)
+
+        self.get_logger().info(
+            f"PCCTargetSweeper started: mode={self.mode}, frame='{self.frame_id}', "
+            f"{len(self.points)} pts, dwell={self.dwell_sec}s, hz={self.publish_hz}, loop={self.loop}"
+        )
+
+    # ---------- 点列生成 ----------
+    def _build_points(self):
+        if self.mode == 'sequence':
+            raw = list(self.get_parameter('points_xyz_flat').value or [])
+            if len(raw) % 3 != 0:
+                self.get_logger().warn('points_xyz_flat length is not multiple of 3. Truncating.')
+                raw = raw[:len(raw)//3*3]
+            pts = [(raw[i], raw[i+1], raw[i+2]) for i in range(0, len(raw), 3)]
+            return pts
+
+        elif self.mode == 'sweep':
+            center = list(self.get_parameter('center').value)
+            axis   = self.get_parameter('axis').value.lower()
+            start  = float(self.get_parameter('start').value)
+            stop   = float(self.get_parameter('stop').value)
+            steps  = int(self.get_parameter('steps').value)
+            if steps < 2:
+                steps = 2
+            vals = [start + (stop-start)*i/(steps-1) for i in range(steps)]
+            axis_idx = {'x':0,'y':1,'z':2}.get(axis, 0)
+            pts = []
+            for v in vals:
+                p = center.copy()
+                p[axis_idx] = center[axis_idx] + v
+                pts.append(tuple(p))
+            return pts
+
+        elif self.mode == 'grid':
+            center = list(self.get_parameter('center').value)
+            a1 = self.get_parameter('grid_axis1').value.lower()
+            a2 = self.get_parameter('grid_axis2').value.lower()
+            span1 = float(self.get_parameter('grid_span1').value)
+            span2 = float(self.get_parameter('grid_span2').value)
+            n1 = max(2, int(self.get_parameter('grid_steps1').value))
+            n2 = max(2, int(self.get_parameter('grid_steps2').value))
+            snake = bool(self.get_parameter('grid_snake').value)
+
+            idx1 = {'x':0,'y':1,'z':2}.get(a1, 0)
+            idx2 = {'x':0,'y':1,'z':2}.get(a2, 2)
+            vals1 = [(-span1*0.5) + (span1)*(i/(n1-1)) for i in range(n1)]
+            vals2 = [(-span2*0.5) + (span2)*(j/(n2-1)) for j in range(n2)]
+
+            pts = []
+            for j, v2 in enumerate(vals2):
+                row = []
+                for i, v1 in enumerate(vals1):
+                    p = center.copy()
+                    p[idx1] = center[idx1] + v1
+                    p[idx2] = center[idx2] + v2
+                    row.append(tuple(p))
+                if snake and (j % 2 == 1):
+                    row = list(reversed(row))
+                pts.extend(row)
+            return pts
+
         else:
-            # once
-            self.get_logger().info(
-                f"[once] publishing {self.target} in frame '{self.frame_id}'")
-            self.publish_target(self.frame_id, *self.target)
+            self.get_logger().warn(f"Unknown mode '{self.mode}', fallback to sequence with current center")
+            p = self.get_parameter('center').value or [0.0,0.0,0.0]
+            return [tuple(p)]
 
-    # ---------- helpers ----------
-    def now_stamp(self) -> Time:
-        return self.get_clock().now().to_msg()
-
-    def publish_target(self, frame_id: str, x: float, y: float, z: float):
+    # ---------- 実行 ----------
+    def _publish_point(self, p):
         msg = PointStamped()
-        msg.header.frame_id = frame_id
-        msg.header.stamp = self.now_stamp()
-        msg.point.x = float(x); msg.point.y = float(y); msg.point.z = float(z)
+        msg.header.frame_id = self.frame_id
+        msg.header.stamp = _now(self)
+        msg.point.x, msg.point.y, msg.point.z = float(p[0]), float(p[1]), float(p[2])
         self.pub.publish(msg)
-        self.get_logger().info(f"-> /pcc_target [{frame_id}]: x={x:.3f}, y={y:.3f}, z={z:.3f}")
 
-    # ---------- callbacks ----------
-    def on_timer(self):
-        self.publish_target(self.frame_id, *self.target)
+    def _on_timer(self):
+        # 現在の点を連続送信
+        p = self.points[self.idx]
+        self._publish_point(p)
 
-    def cb_clicked_point(self, msg: PointStamped):
-        # RViz側から来た座標（通常は RViz の Fixed Frame に依存）
-        if self.force_frame:
-            # 強制的に frame_id を上書き
-            self.publish_target(self.frame_id, msg.point.x, msg.point.y, msg.point.z)
-        else:
-            # そのまま中継（frame_id は元のまま）
-            out = PointStamped()
-            out.header = msg.header
-            out.point = msg.point
-            self.pub.publish(out)
+        # dwell を過ぎたら次の点へ
+        now = self.get_clock().now()
+        if (now - self.last_switch_time).nanoseconds * 1e-9 >= self.dwell_sec:
+            self.idx += 1
+            if self.idx >= len(self.points):
+                if self.loop:
+                    self.idx = 0
+                else:
+                    self.idx = len(self.points) - 1
+                    self.get_logger().info('Reached last point (loop=False). Holding last target.')
+                    self.last_switch_time = now
+                    return
+            self.last_switch_time = now
+            new_p = self.points[self.idx]   # ★新しい点でログ
             self.get_logger().info(
-                f"-> /pcc_target [passthrough '{out.header.frame_id}']: "
-                f"x={out.point.x:.3f}, y={out.point.y:.3f}, z={out.point.z:.3f}")
+                f"Switch to point {self.idx+1}/{len(self.points)}: "
+                f"x={new_p[0]:.3f}, y={new_p[1]:.3f}, z={new_p[2]:.3f} in '{self.frame_id}'"
+            )
 
 def main():
     rclpy.init()

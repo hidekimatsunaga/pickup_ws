@@ -181,10 +181,10 @@ class PCCVisualizer(Node):
             return
 
         # θ 推定（従来どおり）
-        # theta = theta_from_motor_deg_constrained(self.last_motor_deg, self.zero_deg,
-        #            self.motor_idx, self.r_wire, self.r_pulley)
-        theta = theta_from_motor_deg_stiffness(self.last_motor_deg, self.zero_deg,
-                                    self.motor_idx, self.r_wire, self.r_pulley)
+        theta = theta_from_motor_deg_constrained(self.last_motor_deg, self.zero_deg,
+                   self.motor_idx, self.r_wire, self.r_pulley)
+        # theta = theta_from_motor_deg_stiffness(self.last_motor_deg, self.zero_deg,
+        #                             self.motor_idx, self.r_wire, self.r_pulley)
         
         psi0 = math.pi
 
