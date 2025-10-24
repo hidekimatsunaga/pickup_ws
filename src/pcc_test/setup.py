@@ -28,6 +28,8 @@ setup(
             'pcc_visualizer_node = pcc_test.pcc_visualizer_node:main',
             'pcc_target_publisher = pcc_test.pcc_target_publisher:main',
             'lut_measure_recorder = pcc_test.lut_measure_recorder:main',
+            'pcc_error_logger = pcc_test.pcc_error_logger:main',
+            'lut_error_logger = pcc_test.lut_error_logger:main',
         ],
     },
 )
