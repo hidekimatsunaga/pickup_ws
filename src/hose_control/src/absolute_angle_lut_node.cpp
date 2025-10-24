@@ -1,4 +1,4 @@
-// absolute_angle_lut_node.cpp
+// absolute_angle_lut_node.cpp (CSV: stamp,frame,u,v,m6,m7,m8,z6,z7,z8 に対応)
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
@@ -14,16 +14,17 @@
 #include <limits>
 #include <cstdint>
 #include <optional>
+#include <iomanip>
 
 struct Sample {
-  // 位置（CSVの座標系そのまま）
-  double x{0}, y{0}, z{0};
+  // 2D 位置（CSVの座標系そのまま：u,v）
+  double u{0.0}, v{0.0};
   // 絶対角（ここでは m6,m7,m8 の3要素を想定）
   std::vector<double> motors;  // size = motor_cols_.size()
-  // motor10（任意）
-  double motor10{0.0};
   // 任意：元フレーム名（未使用だが将来拡張に備えて保持）
   std::string frame;
+  // 任意：motor10（使う場合）
+  double motor10{0.0};
 };
 
 class AbsoluteAngleLUTNode : public rclcpp::Node {
@@ -32,8 +33,8 @@ public:
   : Node("absolute_angle_lut_node")
   {
     // ---- Parameters ----
-    csv_path_        = this->declare_parameter<std::string>("csv_path", "/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/pcc_measure.csv");
-    goal_topic_      = this->declare_parameter<std::string>("goal_topic", "/hose/goal_point");
+    csv_path_        = this->declare_parameter<std::string>("csv_path", "/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/lut_measure_2d.csv");
+    goal_topic_      = this->declare_parameter<std::string>("goal_topic", "/hose/goal_point");  // PointStamped: point.x=u, point.y=v を想定
     out_topic_       = this->declare_parameter<std::string>("out_topic", "/motor_angles");
     out10_topic_     = this->declare_parameter<std::string>("out10_topic", "/chokudomotor/target_angle");
     marker_topic_    = this->declare_parameter<std::string>("marker_topic", "/hose/neighbor_points");
@@ -42,12 +43,11 @@ public:
     epsilon_         = this->declare_parameter<double>("epsilon", 1e-9);
     use_motor10_     = this->declare_parameter<bool>("use_motor10", false);          // ★ デフォルト無効
 
-    // CSVカラムのマッピング（共有してもらったCSVに合わせた既定）
-    // header: stamp,frame,x,y,z,m6,m7,m8,z6,z7,z8
-    dataset_frame_  = this->declare_parameter<std::string>("dataset_frame", "camera_color_optical_frame");
-    x_col_ = this->declare_parameter<int>("x_col", 2);
-    y_col_ = this->declare_parameter<int>("y_col", 3);
-    z_col_ = this->declare_parameter<int>("z_col", 4);
+    // CSVカラムのマッピング（u,v へ更新）
+    // header: stamp,frame,u,v,m6,m7,m8,z6,z7,z8
+    dataset_frame_  = this->declare_parameter<std::string>("dataset_frame", "base");
+    u_col_ = this->declare_parameter<int>("u_col", 2);
+    v_col_ = this->declare_parameter<int>("v_col", 3);
 
     // motor_cols は int64 配列で受け取り → int へ詰め替え
     std::vector<int64_t> motor_cols_i64 =
@@ -59,9 +59,16 @@ public:
       this->declare_parameter<std::vector<int64_t>>("target_indices", {6,7,8});
     target_indices_.assign(target_idx_i64.begin(), target_idx_i64.end());
 
-    // motor10 列は今回CSVに無いので -1 を既定に
+    // motor10 列が無い想定なので -1 を既定に（使うなら有効な列に設定）
     motor10_col_ = this->declare_parameter<int>("motor10_col", -1);
-    frame_col_   = this->declare_parameter<int>("frame_col", -1); // -1: 使わない
+    frame_col_   = this->declare_parameter<int>("frame_col", 1); // 1: 'frame' 列（あるので既定1）
+
+    // 2D座標を可視化フレームに落とすときの平面マッピング
+    // "xy"(u->x,v->y,z=marker_plane_z), "xz"(u->x,v->z,y=marker_plane_y), "yz"(u->y,v->z,x=marker_plane_x)
+    marker_plane_   = this->declare_parameter<std::string>("marker_plane", "xy");
+    marker_plane_x_ = this->declare_parameter<double>("marker_plane_x", 0.0);
+    marker_plane_y_ = this->declare_parameter<double>("marker_plane_y", 0.0);
+    marker_plane_z_ = this->declare_parameter<double>("marker_plane_z", 0.0);
 
     // ---- I/O ----
     auto qos = rclcpp::QoS(rclcpp::KeepLast(50)).reliable();
@@ -93,11 +100,15 @@ private:
   int k_neighbors_;
   double max_neighbor_m_, epsilon_;
   bool use_motor10_;
-  int x_col_, y_col_, z_col_, motor10_col_, frame_col_;
+  int u_col_, v_col_, motor10_col_, frame_col_;
   std::string dataset_frame_;
   std::vector<int> motor_cols_;       // 読み出す motor 列番号（m6,m7,m8）
   std::vector<int> target_indices_;   // 出力先 index（6,7,8 など）
   std::vector<float> last_current_angles_;  // /motor_current_angles の最新値
+
+  // 可視化用マッピング
+  std::string marker_plane_;
+  double marker_plane_x_, marker_plane_y_, marker_plane_z_;
 
   // Data
   std::vector<Sample> dataset_;
@@ -134,8 +145,10 @@ private:
       splitCSV(line, tok);
 
       // 必要列の範囲チェック
-      int need_cols = std::max({x_col_, y_col_, z_col_, motor10_col_});
+      int need_cols = std::max(u_col_, v_col_);
       for (int c : motor_cols_) need_cols = std::max(need_cols, c);
+      need_cols = std::max(need_cols, motor10_col_);
+      need_cols = std::max(need_cols, frame_col_);
       if (need_cols >= static_cast<int>(tok.size())) {
         RCLCPP_WARN(get_logger(), "Row %zu: not enough columns (%zu). Skip.", line_no, tok.size());
         continue;
@@ -143,9 +156,8 @@ private:
 
       try {
         Sample s;
-        s.x = std::stod(tok.at(x_col_));
-        s.y = std::stod(tok.at(y_col_));
-        s.z = std::stod(tok.at(z_col_));
+        s.u = std::stod(tok.at(u_col_));
+        s.v = std::stod(tok.at(v_col_));
         if (frame_col_ >= 0 && frame_col_ < static_cast<int>(tok.size())) {
           s.frame = tok.at(frame_col_);
         }
@@ -187,17 +199,17 @@ private:
       return;
     }
 
-    const double gx = msg->point.x;
-    const double gy = msg->point.y;
-    const double gz = msg->point.z;
+    // goalは 2D：point.x=u, point.y=v を想定（z は無視）
+    const double gu = msg->point.x;
+    const double gv = msg->point.y;
 
-    // 1) 全点との距離
+    // 1) 全点との2D距離
     std::vector<std::pair<double, size_t>> dist_idx;
     dist_idx.reserve(dataset_.size());
     for (size_t i = 0; i < dataset_.size(); ++i) {
       const auto& s = dataset_[i];
-      const double dx = (s.x - gx), dy = (s.y - gy), dz = (s.z - gz);
-      double d = std::sqrt(dx*dx + dy*dy + dz*dz);
+      const double du = (s.u - gu), dv = (s.v - gv);
+      double d = std::sqrt(du*du + dv*dv);
       dist_idx.emplace_back(d, i);
     }
 
@@ -212,7 +224,7 @@ private:
     if (neigh[0].first > max_neighbor_m_) {
       RCLCPP_WARN(get_logger(), "No neighbor within %.1f mm (nearest=%.1f mm). Skip.",
                   max_neighbor_m_*1000.0, neigh[0].first*1000.0);
-      publishNeighborMarkers(msg->header.frame_id, neigh); // 可視化だけ出す
+      publishNeighborMarkers2D(msg->header.frame_id, neigh); // 可視化だけ出す
       return;
     }
 
@@ -224,7 +236,7 @@ private:
         std_msgs::msg::Float32 m; m.data = static_cast<float>(s.motor10);
         pub_angle10_->publish(m);
       }
-      publishNeighborMarkers(msg->header.frame_id, neigh);
+      publishNeighborMarkers2D(msg->header.frame_id, neigh);
       RCLCPP_INFO(get_logger(), "Used exact sample (d≈0).");
       return;
     }
@@ -258,7 +270,7 @@ private:
       std_msgs::msg::Float32 m; m.data = static_cast<float>(out10);
       pub_angle10_->publish(m);
     }
-    publishNeighborMarkers(msg->header.frame_id, neigh);
+    publishNeighborMarkers2D(msg->header.frame_id, neigh);
 
     // ログ
     {
@@ -302,8 +314,23 @@ private:
     pub_angles_->publish(msg);
   }
 
-  void publishNeighborMarkers(const std::string& frame_id,
-                              const std::vector<std::pair<double,size_t>>& neigh)
+  void uvToXYZ(double u, double v, double& x, double& y, double& z) const
+  {
+    // 2D (u,v) を可視化用の3D座標に埋める
+    if (marker_plane_ == "xy") {
+      x = u; y = v; z = marker_plane_z_;
+    } else if (marker_plane_ == "xz") {
+      x = u; y = marker_plane_y_; z = v;
+    } else if (marker_plane_ == "yz") {
+      x = marker_plane_x_; y = u; z = v;
+    } else {
+      // 未知指定は xy にフォールバック
+      x = u; y = v; z = marker_plane_z_;
+    }
+  }
+
+  void publishNeighborMarkers2D(const std::string& frame_id,
+                                const std::vector<std::pair<double,size_t>>& neigh)
   {
     visualization_msgs::msg::MarkerArray ma;
     rclcpp::Time now = this->get_clock()->now();
@@ -317,9 +344,13 @@ private:
       mk.id = id++;
       mk.type = visualization_msgs::msg::Marker::SPHERE;
       mk.action = visualization_msgs::msg::Marker::ADD;
-      mk.pose.position.x = s.x;
-      mk.pose.position.y = s.y;
-      mk.pose.position.z = s.z;
+
+      double x, y, z;
+      uvToXYZ(s.u, s.v, x, y, z);
+      mk.pose.position.x = x;
+      mk.pose.position.y = y;
+      mk.pose.position.z = z;
+
       mk.pose.orientation.w = 1.0;
       mk.scale.x = mk.scale.y = mk.scale.z = 0.02; // 2cm
       mk.color.r = 1.0f; mk.color.g = 0.0f; mk.color.b = 0.0f; mk.color.a = 1.0f;

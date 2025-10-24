@@ -34,14 +34,16 @@ class PCCMeasureRecorder(Node):
         super().__init__('pcc_measure_recorder')
 
         # ---- params ----
-        self.declare_parameter('csv_path', '/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/pcc_measure.csv')
+        self.declare_parameter('csv_path', '/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/lut_measure_1024.csv')
         self.declare_parameter('mode', 'timer')  # 'timer' or 'trigger'
         self.declare_parameter('record_hz', 5.0) # mode=timer の周期
-        self.declare_parameter('unify_frame', 'camera_color_optical_frame')  # or 'base'
+        self.declare_parameter('unify_frame', 'base')  # or 'base'
         self.declare_parameter('camera_frame', 'camera_color_optical_frame')
         self.declare_parameter('base_marker_id', 4)
         self.declare_parameter('tip_marker_id', 0)
         self.declare_parameter('motor_indices', [6,7,8])  # 保存したいインデックス
+        self.declare_parameter('use_2d', True)
+        self.declare_parameter('drop_axis', 'z')
 
         # ---- get ----
         self.csv_path     = self.get_parameter('csv_path').value
@@ -52,7 +54,9 @@ class PCCMeasureRecorder(Node):
         self.base_id      = int(self.get_parameter('base_marker_id').value)
         self.tip_id       = int(self.get_parameter('tip_marker_id').value)
         self.motor_idx    = list(self.get_parameter('motor_indices').value)
-
+        self.use_2d    = bool(self.get_parameter('use_2d').value)
+        self.drop_axis = str(self.get_parameter('drop_axis').value).lower()
+        
         # ---- state ----
         self.T_CB = None  # C←B
         self.T_BC = None  # B←C
@@ -122,10 +126,10 @@ class PCCMeasureRecorder(Node):
     def _maybe_write_row(self):
         # 必要データが揃っているか
         if self.last_motor_deg is None or self.zero_deg is None:
-            self.get_logger().warn_throttle(2.0, "no motor/zero yet; skip")
+            self._log_throttle('warn', 'no_motor_zero', "no motor/zero yet; skip", 2.0)
             return False
         if self.tip_pose_C is None:
-            self.get_logger().warn_throttle(2.0, "tip(id=0) not visible; skip")
+            self._log_throttle('warn', 'no_tip', "tip(id=0) not visible; skip", 2.0)
             return False
 
         # tip を unify_frame に変換
@@ -136,44 +140,62 @@ class PCCMeasureRecorder(Node):
             pU = pC
         elif self.unify_frame.lower() == 'base':
             if self.T_BC is None:
-                self.get_logger().warn_throttle(2.0, "no base transform; skip")
+                self._log_throttle('warn', 'no_base_transform', "no base transform; skip", 2.0)
                 return False
             pU = self.T_BC @ pC
         else:
             # それ以外は未対応（必要なら拡張）
             self._log_throttle('warn', 'tip_not_visible', "tip(id=0) not visible; skip", 2.0)
             return False
+        x, y, z = float(pU[0]), float(pU[1]), float(pU[2])
 
         # 取り出すモータ角（指定 index）
         try:
             m = [float(self.last_motor_deg[i]) for i in self.motor_idx]
-            z = [float(self.zero_deg[i])       for i in self.motor_idx]
+            z0 = [float(self.zero_deg[i])       for i in self.motor_idx]
         except Exception:
             self.get_logger().error("motor_indices out of range")
             return False
 
         # 書き込み
         st = self.get_clock().now().nanoseconds * 1e-9
-        row = [f"{st:.6f}", self.unify_frame,
-               f"{pU[0]:.6f}", f"{pU[1]:.6f}", f"{pU[2]:.6f}"] + \
-              [f"{v:.4f}" for v in m] + [f"{v:.4f}" for v in z]
+        if self.use_2d:
+            # drop_axis に基づいて 2D 射影
+            if self.drop_axis == 'x':
+                u, v = y, z
+            elif self.drop_axis == 'y':
+                u, v = x, z
+            else:  # 'z' が既定：前方向を無視
+                u, v = x, y
+            row = [f"{st:.6f}", self.unify_frame, f"{u:.6f}", f"{v:.6f}"] \
+                + [f"{v:.4f}" for v in m] + [f"{v:.4f}" for v in z0]
+            self.get_logger().info(
+                f"save(2D): frame={self.unify_frame} uv=({u:.3f},{v:.3f}) "
+                f"m={list(map(lambda x: round(x,2), m))} z={list(map(lambda x: round(x,2), z0))}"
+            )
+        else:
+            row = [f"{st:.6f}", self.unify_frame, f"{x:.6f}", f"{y:.6f}", f"{z:.6f}"] \
+                + [f"{v:.4f}" for v in m] + [f"{v:.4f}" for v in z0]
+            self.get_logger().info(
+                f"save(3D): frame={self.unify_frame} tip=({x:.3f},{y:.3f},{z:.3f}) "
+                f"m={list(map(lambda x: round(x,2), m))} z={list(map(lambda x: round(x,2), z0))}"
+            )
 
         with open(self.csv_path, 'a', newline='') as f:
             w = csv.writer(f)
             w.writerow(row)
-
-        self.get_logger().info(
-            f"save: frame={self.unify_frame} tip=({float(pU[0]):.3f},{float(pU[1]):.3f},{float(pU[2]):.3f}) "
-            f"m={list(map(lambda x: round(x,2), m))} z={list(map(lambda x: round(x,2), z))}"
-        )
         return True
 
+    # _ensure_header の置き換え
     def _ensure_header(self):
         if os.path.exists(self.csv_path) and os.path.getsize(self.csv_path) > 0:
             return
         with open(self.csv_path, 'w', newline='') as f:
             w = csv.writer(f)
-            cols = ['stamp','frame','x','y','z']
+            if self.use_2d:
+                cols = ['stamp','frame','u','v']
+            else:
+                cols = ['stamp','frame','x','y','z']
             cols += [f"m{idx}" for idx in self.motor_idx]
             cols += [f"z{idx}" for idx in self.motor_idx]
             w.writerow(cols)
@@ -192,7 +214,7 @@ class PCCMeasureRecorder(Node):
         logger = self.get_logger()
         if   level == 'debug': logger.debug(msg)
         elif level == 'info':  logger.info(msg)
-        elif level == 'warn':  logger.warn(msg)
+        elif level == 'warn':  logger.warning(msg)
         else:                  logger.error(msg)
 
 

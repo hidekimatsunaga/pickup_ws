@@ -165,8 +165,22 @@ class PCCMoveNode(Node):
         else:
             pB = np.array([msg.point.x, msg.point.y, msg.point.z], float)
 
+        # R_BP: P基底ベクトルをBで表した列ベクトルの行列
+        #  P.x = B.x,  P.y = B.z(法線),  P.z = B.y
+        R_BP = np.array([
+            [1.0, 0.0, 0.0],  # B.x
+            [0.0, 0.0, 1.0],  # B.z
+            [0.0, 1.0, 0.0],  # B.y
+        ], dtype=float)
+
+        # R_PB = R_BP^T （ベクトルをB→Pに写す）
+        R_PB = R_BP.T
+
+        # B系点をP系へ
+        pP = R_PB @ pB
+
         # ---- 2D IK（x,z）----
-        p_des_xz = np.array([pB[0], pB[2]], float)
+        p_des_xz = np.array([pP[0], pP[2]], float)
         theta, ok = lm_ik_2d(p_des_xz, self.L, tip_extra=self.tip_extra, theta0=np.zeros(3), iters=180, lam=1e-2)
         if not ok:
             self.get_logger().warn(f'IK not fully converged: theta={theta}')
@@ -191,14 +205,13 @@ class PCCMoveNode(Node):
 
         out = Float32MultiArray(); out.data = cmd.tolist()
         self.pub_cmd.publish(out)
-
+        
         p_fk,_ = pcc_forward_end(theta, self.L, tip_extra=self.tip_extra)
         self.get_logger().info(
-            f"target(B) xz=({p_des_xz[0]:.3f},{p_des_xz[1]:.3f}) "
+            f"target(P) xz=({p_des_xz[0]:.3f},{p_des_xz[1]:.3f}) "
             f"theta(deg)={[round(t*180/math.pi,2) for t in theta]} "
-            f"dl(mm)={[round(x*1000,2) for x in dls]} "
             f"cmd(deg)={[round(cmd[i],3) for i in self.motor_idx]} "
-            f"fk=({p_fk[0]:.3f},{p_fk[2]:.3f})"
+            f"fkP=({p_fk[0]:.3f},{p_fk[2]:.3f})"
         )
 
 def main():
