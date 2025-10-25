@@ -33,7 +33,7 @@ public:
   : Node("absolute_angle_lut_node")
   {
     // ---- Parameters ----
-    csv_path_        = this->declare_parameter<std::string>("csv_path", "/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/lut_measure_2d.csv");
+    csv_path_        = this->declare_parameter<std::string>("csv_path", "/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/lut_measure_1024.csv");
     goal_topic_      = this->declare_parameter<std::string>("goal_topic", "/hose/goal_point");  // PointStamped: point.x=u, point.y=v を想定
     out_topic_       = this->declare_parameter<std::string>("out_topic", "/motor_angles");
     out10_topic_     = this->declare_parameter<std::string>("out10_topic", "/chokudomotor/target_angle");
