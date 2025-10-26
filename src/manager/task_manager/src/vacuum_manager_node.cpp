@@ -43,8 +43,13 @@ private:
       RCLCPP_INFO(this->get_logger(),
         "Received /robot/state=\"%s\" → Auto suction ON", msg->data.c_str());
       setVacuumFlag(true, /*is_auto=*/true);
+    } else if (msg->data == "collecting_finished" || msg->data == "collecting-finished" || msg->data == "collecting finished" || msg->data == "collecing_finshed") {
+      // 収集完了メッセージを受けたら自動でOFFにする
+      RCLCPP_INFO(this->get_logger(),
+        "Received /robot/state=\"%s\" → Auto suction OFF", msg->data.c_str());
+      setVacuumFlag(false, /*is_auto=*/true);
     } else {
-      // collecting 以外のstateが来ても OFF にはしない仕様
+      // その他のstateは現状アクションなし
       RCLCPP_DEBUG(this->get_logger(),
         "Received /robot/state=\"%s\" (no action)", msg->data.c_str());
     }

@@ -19,6 +19,15 @@ class AngleSerialNode(Node):
             10
         )
 
+        # パラメータ: 角度変化でログ出力する閾値（度）およびログ抑制フラグ
+        p_thresh = self.declare_parameter('angle_change_threshold', 0.1)
+        p_flag = self.declare_parameter('log_only_on_change', True)
+        self.angle_change_threshold = p_thresh.value
+        self.log_only_on_change = p_flag.value
+
+        # 最後にログ出力した角度（比較用）
+        self.last_angles = None
+
         # Subscriber: 角度情報の受信
         qos = rclpy.qos.QoSProfile(depth=50, reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
         self.subscription = self.create_subscription(Float32MultiArray,
@@ -65,7 +74,21 @@ class AngleSerialNode(Node):
                 if len(vals) == 9:
                     msg = Float32MultiArray(data=vals)
                     self.angle_pub.publish(msg)
-                    self.get_logger().info(f'Current angles: {vals}')
+
+                    # ログ出力: 初回は出力、以降は閾値以上変化したときのみ出力
+                    try:
+                        if self.last_angles is None:
+                            self.get_logger().info(f'Current angles: {vals}')
+                            self.last_angles = list(vals)
+                        else:
+                            diffs = [abs(a - b) for a, b in zip(vals, self.last_angles)]
+                            if (not self.log_only_on_change) or any(d > self.angle_change_threshold for d in diffs):
+                                self.get_logger().info(f'Current angles: {vals}')
+                                self.last_angles = list(vals)
+                    except Exception:
+                        # 何らかの理由で比較できない場合は安全にログする
+                        self.get_logger().info(f'Current angles: {vals}')
+                        self.last_angles = list(vals)
 
             # ---------- ② スイッチ ----------
             self.ser.reset_input_buffer()

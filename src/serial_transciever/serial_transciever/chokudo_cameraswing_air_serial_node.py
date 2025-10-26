@@ -18,6 +18,15 @@ class DualMotorSerialNode(Node):
         self.prev_angle1_cmd = None
         self.prev_angle2_cmd = None
 
+        # ログ出力の制御パラメータ
+        p_thresh = self.declare_parameter('angle_change_threshold', 0.1)
+        p_flag = self.declare_parameter('log_only_on_change', True)
+        self.angle_change_threshold = p_thresh.value
+        self.log_only_on_change = p_flag.value
+
+        # 最後にログ出力した角度の保持
+        self.last_logged_angles = None
+
         # 個別にサブスクライブ
         self.sub1 = self.create_subscription(
             Float32,
@@ -99,10 +108,26 @@ class DualMotorSerialNode(Node):
                         self.angle1_pub.publish(msg1)
                         self.angle2_pub.publish(msg2)
                         self.pressure_pub.publish(msg3)
-
-                        self.get_logger().info(
-                            f"Recv -> angle1: {angle1:.2f}, angle2: {angle2:.2f}, pressure: {pressure:.2f}"
-                        )
+                        # ログは初回または閾値以上変化したときのみ出力
+                        try:
+                            if self.last_logged_angles is None:
+                                self.get_logger().info(
+                                    f"Recv -> angle1: {angle1:.2f}, angle2: {angle2:.2f}, pressure: {pressure:.2f}"
+                                )
+                                self.last_logged_angles = [angle1, angle2]
+                            else:
+                                diffs = [abs(angle1 - self.last_logged_angles[0]), abs(angle2 - self.last_logged_angles[1])]
+                                if (not self.log_only_on_change) or any(d > self.angle_change_threshold for d in diffs):
+                                    self.get_logger().info(
+                                        f"Recv -> angle1: {angle1:.2f}, angle2: {angle2:.2f}, pressure: {pressure:.2f}"
+                                    )
+                                    self.last_logged_angles = [angle1, angle2]
+                        except Exception:
+                            # 比較に失敗したら安全側でログ出力して記録を更新
+                            self.get_logger().info(
+                                f"Recv -> angle1: {angle1:.2f}, angle2: {angle2:.2f}, pressure: {pressure:.2f}"
+                            )
+                            self.last_logged_angles = [angle1, angle2]
                     else:
                         self.get_logger().warn(f'Invalid response: {line}')
             except Exception as e:
