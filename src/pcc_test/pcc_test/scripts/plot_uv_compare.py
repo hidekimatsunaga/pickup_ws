@@ -1,15 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import argparse
+import os
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('csv', help='uv_compare.csv')
+    # csv を省略可能にして、指定がなければスクリプト隣の uv_compare.csv を使う
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    # default_csv = os.path.join(script_dir, '..', 'lut_csv', 'uv_compare_v2.csv')
+    default_csv = os.path.join(script_dir, '..', 'lut_csv', 'uv_compare_v2_means_corrected_20251027_125147.csv')    
+    default_out = os.path.join(script_dir, '..', '..', 'jpg')
+    ap.add_argument('csv', nargs='?', default=default_csv, help=f'uv_compare.csv (default: {default_csv})')
     ap.add_argument('--mm', action='store_true', help='mm単位で描画（既定: m）')
+    ap.add_argument('--save', action='store_true', help='画像をファイルへ保存')
+    ap.add_argument('--out-dir', default=default_out, help='保存先ディレクトリ (デフォルト: src/pcc_test/jpg)')
     args = ap.parse_args()
+
+    if not os.path.exists(args.csv):
+        raise FileNotFoundError(f"CSV file not found: {args.csv}")
 
     df = pd.read_csv(args.csv)
 
@@ -61,8 +73,18 @@ def main():
     mean = np.mean(e); med = np.median(e); p95 = np.percentile(e,95); p99 = np.percentile(e,99)
     print(f"[summary] mean={mean:.3f}{unit}, median={med:.3f}{unit}, p95={p95:.3f}{unit}, p99={p99:.3f}{unit}")
 
-    plt.tight_layout()
-    plt.show()
+    save_requested = args.save or (not ('DISPLAY' in os.environ or 'WAYLAND_DISPLAY' in os.environ))
+    if save_requested:
+        os.makedirs(args.out_dir, exist_ok=True)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        base = os.path.splitext(os.path.basename(args.csv))[0]
+        outpath = os.path.join(args.out_dir, f'uv_compare_{base}_{ts}.png')
+        plt.tight_layout()
+        plt.savefig(outpath, dpi=150)
+        print(f"Saved plots to {outpath}")
+    else:
+        plt.tight_layout()
+        plt.show()
 
 if __name__ == '__main__':
     main()

@@ -31,6 +31,8 @@ setup(
             'pcc_error_logger = pcc_test.pcc_error_logger:main',
             'lut_error_logger = pcc_test.lut_error_logger:main',
             'uv_csv_recorder = pcc_test.uv_csv_recorder:main',
+            'lut_measure_recorder_with_switch = pcc_test.lut_measure_recorder_with_switch:main',
+            'uv_sync_recorder_with_switch = pcc_test.uv_sync_recorder_with_switch:main',
         ],
     },
 )
