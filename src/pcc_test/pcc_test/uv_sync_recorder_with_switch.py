@@ -50,7 +50,7 @@ class UVSyncRecorderWithSwitch(Node):
         super().__init__('uv_sync_recorder_with_switch')
 
         # parameters (defaults mirror uv_csv_recorder)
-        self.declare_parameter('csv_path', '/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/uv_compare_v4.csv')
+        self.declare_parameter('csv_path', '/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/uv_compare_1028_v2.csv')
         self.declare_parameter('model_topic', '/pcc_tip_on_base_plane')
         self.declare_parameter('meas_topic',  '/meas_tip_on_base_plane')
         self.declare_parameter('max_pair_dt', 0.050)
@@ -103,7 +103,8 @@ class UVSyncRecorderWithSwitch(Node):
                 w = csv.writer(f)
                 cols = ['stamp','dt','u_model','v_model','u_meas','v_meas','ex','ey','e_norm']
                 # add switch column headers using 1-based indices
-                cols += [f's{idx}' for idx in self.switch_idx_1b]
+                # use plain numbers for switch column names (e.g. '7','8','9')
+                cols += [str(idx) for idx in self.switch_idx_1b]
                 w.writerow(cols)
 
     # callbacks
@@ -129,7 +130,8 @@ class UVSyncRecorderWithSwitch(Node):
         try:
             self.latest_switch = list(msg.data)
         except Exception:
-            self.get_logger().warn('Invalid /switch message received')
+            # use warning so it appears in standard ROS2 logs
+            self.get_logger().warning('Invalid /switch message received')
 
     def _prune_buffers(self, now_t: float):
         while self.buf_model and (now_t - self.buf_model[0][0] > self.buffer_sec):
@@ -183,7 +185,15 @@ class UVSyncRecorderWithSwitch(Node):
             w = csv.writer(f)
             w.writerow(row)
 
-        self.get_logger().debug(f"paired dt={dt*1000:.1f} ms, e_norm={e_norm:.6f}, switches={self.latest_switch}")
+        # Log a concise info message including the timestamp, dt (ms), error norm and the switch values written
+        try:
+            # switch columns follow the first 9 columns (stamp..e_norm)
+            switch_vals = row[9:]
+        except Exception:
+            switch_vals = []
+        self.get_logger().info(
+            f"wrote row to {self.csv_path}: stamp={stamp:.6f}, dt={dt*1000:.1f} ms, e_norm={e_norm:.6f}, switches={switch_vals}"
+        )
 
 
 def main():
