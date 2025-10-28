@@ -50,13 +50,13 @@ class UVSyncRecorderWithSwitch(Node):
         super().__init__('uv_sync_recorder_with_switch')
 
         # parameters (defaults mirror uv_csv_recorder)
-        self.declare_parameter('csv_path', '/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/uv_compare_1028_v2.csv')
+        self.declare_parameter('csv_path', '/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/lut_csv/uv_compare_1029.csv')
         self.declare_parameter('model_topic', '/pcc_tip_on_base_plane')
         self.declare_parameter('meas_topic',  '/meas_tip_on_base_plane')
         self.declare_parameter('max_pair_dt', 0.050)
         self.declare_parameter('buffer_sec',  2.0)
-        self.declare_parameter('flip_model', 'none')
-        self.declare_parameter('flip_meas',  'none')
+        self.declare_parameter('flip_model', 'xy')
+        self.declare_parameter('flip_meas',  'x')
         # which switch indices to save (1-based friendly). default [7,8,9]
         self.declare_parameter('switch_indices', [7,8,9])
 
