@@ -94,7 +94,7 @@ def main():
 
     # プロット数は uv-time フラグで切り替え
     if args.uv_time:
-        nrows = 3
+        nrows = 2
     else:
         nrows = 3
 
@@ -134,13 +134,13 @@ def main():
     ax1.set_title('Plane error over time')
     ax1.grid(True); ax1.legend()
 
-    # Switch values vs time (7,8,9)
-    ax2 = axes[idx]
-    for col in sw_cols:
-        ax2.plot(t, sw_data[col], marker='o', linestyle='-', label=f'switch {col}')
-    ax2.set_xlabel('time [s]'); ax2.set_ylabel('switch value')
-    ax2.set_title('Switch values over time (indices 7,8,9)')
-    ax2.grid(True); ax2.legend()
+    # # Switch values vs time (7,8,9)
+    # ax2 = axes[idx]
+    # for col in sw_cols:
+    #     ax2.plot(t, sw_data[col], marker='o', linestyle='-', label=f'switch {col}')
+    # ax2.set_xlabel('time [s]'); ax2.set_ylabel('switch value')
+    # ax2.set_title('Switch values over time (indices 7,8,9)')
+    # ax2.grid(True); ax2.legend()
 
     # 保存有効なら保存、無効なら描画（対話的表示）します
     os.makedirs(args.out_dir, exist_ok=True)
