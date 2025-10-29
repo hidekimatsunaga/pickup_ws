@@ -59,8 +59,11 @@ public:
     );
 
     // パラメータ: ステップ到達判定の閾値とタイムアウト
-    step_tolerance_ = this->declare_parameter("step_tolerance", step_tolerance_);
-    step_timeout_ = this->declare_parameter("step_timeout", step_timeout_);
+    // パラメータ: ステップ到達判定の閾値とタイムアウト
+    step_tolerance_         = this->declare_parameter("step_tolerance",        step_tolerance_);
+    step_timeout_           = this->declare_parameter("step_timeout",          step_timeout_);
+    final_wait_before_check_= this->declare_parameter("final_wait_before_check", final_wait_before_check_);
+
 
     // --- タイマー: autoモード用のステップ送り ---
     using namespace std::chrono_literals;
@@ -98,10 +101,17 @@ private:
   bool has_10_{false};
 
   // ステップ到達待ちフラグ / 閾値 / タイムアウト
-  bool waiting_for_reach_{false};
-  double step_tolerance_{30.0};   // deg, デフォルト
-  double step_timeout_{10.0};      // 秒, デフォルト
+  // bool waiting_for_reach_{false};
+  // double step_tolerance_{30.0};   // deg, デフォルト
+  // double step_timeout_{10.0};      // 秒, デフォルト
   rclcpp::Time step_start_time_;
+    // ステップ到達待ちフラグ / 閾値 / タイムアウト
+  bool   waiting_for_reach_{false};
+  double step_tolerance_{5.0};     // deg, デフォルトちょっと厳しめに変更
+  double step_timeout_{20.0};      // 秒, 最終ステップの強制終了タイムアウト
+  double final_wait_before_check_{1.0}; // 秒, 最終ステップで到達判定を始める前に最低これだけ待つ
+  // rclcpp::Time step_start_time_;
+
 
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        pressure_sub_;
   rclcpp::TimerBase::SharedPtr                                   auto_timer_;
@@ -264,125 +274,204 @@ private:
   //========================
   // 自動ピックアップシーケンス送り
   //========================
-  void autoSequenceLoop()
-  {
-    if (!auto_mode_.load()) {
-      return;  // まだトリガーされてない
-    }
+void autoSequenceLoop()
+{
+  if (!auto_mode_.load()) {
+    return;  // まだ自動回収モードじゃない
+  }
 
-    if (pickup_sequence_.empty()) {
-      RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-        "pickup_sequence_ is empty but auto_mode_ is true!");
-      return;
-    }
+  if (pickup_sequence_.empty()) {
+    RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+      "pickup_sequence_ is empty but auto_mode_ is true!");
+    return;
+  }
 
-    if (auto_step_ >= pickup_sequence_.size()) {
-      // すでに最後まで実行済み
-      RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-        "AUTO PICKUP MODE finished (holding last pose).");
-      return;
-    }
+  if (auto_step_ >= pickup_sequence_.size()) {
+    RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+      "AUTO PICKUP MODE already finished.");
+    return;
+  }
 
-    const auto &angles = pickup_sequence_[auto_step_];
+  const auto &angles = pickup_sequence_[auto_step_];
+  const bool is_last_step = (auto_step_ == pickup_sequence_.size() - 1);
 
-    // 到達待ちでなければこのステップをpublishして到達待ちに入る
-    if (!waiting_for_reach_) {
-      // --- Motor1-9 publish ---
-      if (angles.size() < 9) {
-        RCLCPP_ERROR(this->get_logger(),
-          "pickup_sequence step %zu has <9 values!", auto_step_);
-        // 警告出して次に進む
-        auto_step_++;
-        return;
-      }
-
+  //========================
+  // 最後のステップ「ではない」場合
+  // → 角度チェックなし、即送って即次へ
+  //========================
+  if (!is_last_step) {
+    // publish motor1-9
+    if (angles.size() < 9) {
+      RCLCPP_ERROR(this->get_logger(),
+        "pickup_sequence step %zu has <9 values!", auto_step_);
+      // データ壊れててもどうせこの後進む
+    } else {
       std_msgs::msg::Float32MultiArray motor1_9_msg;
       motor1_9_msg.data.assign(angles.begin(), angles.begin() + 9);
       pub_motor1_9_->publish(motor1_9_msg);
-
-      // --- Motor10 publish ---
-      if (angles.size() >= 10) {
-        std_msgs::msg::Float32 motor10_msg;
-        motor10_msg.data = angles[9];
-        pub_motor10_->publish(motor10_msg);
-
-        RCLCPP_INFO(this->get_logger(),
-          "AUTO PICKUP step %zu/%zu → Pub motor1-9 + motor10(%.2f)",
-          auto_step_, pickup_sequence_.size() - 1, motor10_msg.data);
-      } else {
-        RCLCPP_INFO(this->get_logger(),
-          "AUTO PICKUP step %zu/%zu → Pub motor1-9 (no motor10 in data)",
-          auto_step_, pickup_sequence_.size() - 1);
-      }
-
-      // 到達待ちに入る
-      waiting_for_reach_ = true;
-      step_start_time_ = this->get_clock()->now();
-      return;
     }
 
-    // 到達待ち: 現在角度が目標に近いか確認
-    bool reached = true;
-    if (angles.size() >= 9) {
-      if (!has_9_ || latest_9_.data.size() < 9) reached = false;
-      else {
-        for (size_t i = 0; i < 9; ++i) {
-          if (std::fabs((double)latest_9_.data[i] - (double)angles[i]) > step_tolerance_) {
-            reached = false;
-            break;
-          }
-        }
-      }
-    }
+    // publish motor10 (あれば)
     if (angles.size() >= 10) {
-      if (!has_10_) reached = false;
-      else if (std::fabs((double)latest_10_.data - (double)angles[9]) > step_tolerance_) reached = false;
+      std_msgs::msg::Float32 motor10_msg;
+      motor10_msg.data = angles[9];
+      pub_motor10_->publish(motor10_msg);
+
+      RCLCPP_INFO(this->get_logger(),
+        "AUTO PICKUP step %zu/%zu → Pub motor1-9 + motor10(%.2f) (no check, auto advance)",
+        auto_step_, pickup_sequence_.size() - 1, motor10_msg.data);
+    } else {
+      RCLCPP_INFO(this->get_logger(),
+        "AUTO PICKUP step %zu/%zu → Pub motor1-9 (no motor10 in data, no check, auto advance)",
+        auto_step_, pickup_sequence_.size() - 1);
     }
 
-    // タイムアウトチェック
-    const double elapsed = (this->get_clock()->now() - step_start_time_).seconds();
-    if (!reached && elapsed > step_timeout_) {
-      RCLCPP_WARN(this->get_logger(),
-        "Step %zu not reached within %.2f s → forcing advance (elapsed=%.2f)",
-        auto_step_, step_timeout_, elapsed);
-      reached = true; // 強制進行
+    // 次のステップへ即進む
+    auto_step_++;
+    return;
+  }
+
+  //========================
+  // ここから「最後のステップ」
+  //========================
+
+  // まだ待機モードに入っていないなら、一度だけコマンドを投げて待ちに入る
+  if (!waiting_for_reach_) {
+    // publish motor1-9
+    if (angles.size() < 9) {
+      RCLCPP_ERROR(this->get_logger(),
+        "pickup_sequence LAST step %zu has <9 values!", auto_step_);
+    } else {
+      std_msgs::msg::Float32MultiArray motor1_9_msg;
+      motor1_9_msg.data.assign(angles.begin(), angles.begin() + 9);
+      pub_motor1_9_->publish(motor1_9_msg);
     }
 
-    if (reached) {
-      RCLCPP_INFO(this->get_logger(), "Step %zu reached → advance to next step.", auto_step_);
-      waiting_for_reach_ = false;
-      auto_step_++;
+    // publish motor10 (あれば)
+    if (angles.size() >= 10) {
+      std_msgs::msg::Float32 motor10_msg;
+      motor10_msg.data = angles[9];
+      pub_motor10_->publish(motor10_msg);
 
-      // 完了判定: 次のステップ番号が配列長を超えたら完了処理
-      if (auto_step_ >= pickup_sequence_.size()) {
-        RCLCPP_INFO(this->get_logger(), "AUTO PICKUP MODE completed. Holding final pose.");
+      RCLCPP_INFO(this->get_logger(),
+        "AUTO PICKUP FINAL step %zu/%zu → Pub motor1-9 + motor10(%.2f), entering wait mode",
+        auto_step_, pickup_sequence_.size() - 1, motor10_msg.data);
+    } else {
+      RCLCPP_INFO(this->get_logger(),
+        "AUTO PICKUP FINAL step %zu/%zu → Pub motor1-9 (no motor10), entering wait mode",
+        auto_step_, pickup_sequence_.size() - 1);
+    }
 
-        // 終了時の処理: 状態通知・吸引OFF・初期姿勢への復帰
-        std_msgs::msg::String state_msg;
-        state_msg.data = "collecting_finished";
-        pub_robot_state_->publish(state_msg);
+    // 到達待ちモードへ
+    waiting_for_reach_ = true;
+    step_start_time_   = this->get_clock()->now();
+    return;
+  }
 
-        std_msgs::msg::Bool vac_msg;
-        vac_msg.data = false;
-        pub_vacuum_flag_->publish(vac_msg);
+  //========================
+  // 最終ステップの到達判定フェーズ
+  //========================
 
-        // 初期姿勢へ戻す
-        if (stop_angles_.size() >= 9) {
-          std_msgs::msg::Float32MultiArray motor1_9_msg;
-          motor1_9_msg.data.assign(stop_angles_.begin(), stop_angles_.begin() + 9);
-          pub_motor1_9_->publish(motor1_9_msg);
-        } else {
-          RCLCPP_WARN(this->get_logger(), "motor_initial_position.hpp: stop_angles_ has less than 9 elements");
+  // まず、ある程度は必ず待つ（まだ動いてるのに「到達」扱いしないため）
+  const double elapsed =
+    (this->get_clock()->now() - step_start_time_).seconds();
+
+  if (elapsed < final_wait_before_check_) {
+    // まだ最低待機時間に達してないので何もしない
+    RCLCPP_DEBUG(this->get_logger(),
+      "Waiting before final check... (elapsed=%.2f / wait=%.2f)",
+      elapsed, final_wait_before_check_);
+    return;
+  }
+
+  // ここからやっと「到達したか？」を見る
+  bool reached = true;  // どこか外れてたら false に落とす
+
+  // 1〜9軸チェック
+  if (angles.size() >= 9) {
+    if (!has_9_ || latest_9_.data.size() < 9) {
+      reached = false;
+    } else {
+      for (size_t i = 0; i < 9; ++i) {
+        double err_i = std::fabs(
+          (double)latest_9_.data[i] - (double)angles[i]
+        );
+        if (err_i > step_tolerance_) {
+          reached = false;
+          break;
         }
-        std_msgs::msg::Float32 motor10_msg;
-        motor10_msg.data = stop_motor10_angle_;
-        pub_motor10_->publish(motor10_msg);
+      }
+    }
+  } else {
+    reached = false;
+  }
 
-        RCLCPP_INFO(this->get_logger(), "Published initial pose (from motor_initial_position.hpp) after AUTO PICKUP completion.");
-        auto_mode_.store(false);
+  // 10軸チェック（あれば）
+  if (reached && angles.size() >= 10) {
+    if (!has_10_) {
+      reached = false;
+    } else {
+      double err_10 = std::fabs(
+        (double)latest_10_.data - (double)angles[9]
+      );
+      if (err_10 > step_tolerance_) {
+        reached = false;
       }
     }
   }
+
+  // まだズレてるけど、もう待ちすぎなら強制終了（安全クリア）
+  if (!reached && elapsed > step_timeout_) {
+    RCLCPP_WARN(this->get_logger(),
+      "FINAL step not reached within %.2f s → forcing completion (elapsed=%.2f)",
+      step_timeout_, elapsed);
+    reached = true;
+  }
+
+  //========================
+  // 終了処理
+  //========================
+  if (reached) {
+    RCLCPP_INFO(this->get_logger(),
+      "FINAL step reached after %.2f s. AUTO PICKUP MODE completed.", elapsed);
+
+    // /robot/state を "collecting_finished" に
+    std_msgs::msg::String state_msg;
+    state_msg.data = "collecting_finished";
+    pub_robot_state_->publish(state_msg);
+
+    // 吸着OFF
+    std_msgs::msg::Bool vac_msg;
+    vac_msg.data = false;
+    pub_vacuum_flag_->publish(vac_msg);
+
+    // 初期姿勢へ戻す
+    if (stop_angles_.size() >= 9) {
+      std_msgs::msg::Float32MultiArray motor1_9_msg;
+      motor1_9_msg.data.assign(
+        stop_angles_.begin(),
+        stop_angles_.begin() + 9
+      );
+      pub_motor1_9_->publish(motor1_9_msg);
+    } else {
+      RCLCPP_WARN(this->get_logger(),
+        "motor_initial_position.hpp: stop_angles_ has less than 9 elements");
+    }
+
+    std_msgs::msg::Float32 motor10_msg;
+    motor10_msg.data = stop_motor10_angle_;
+    pub_motor10_->publish(motor10_msg);
+
+    RCLCPP_INFO(this->get_logger(),
+      "Published initial pose + vacuum OFF after AUTO PICKUP completion.");
+
+    // 自動モード終了
+    auto_mode_.store(false);
+  }
+
+  // reached=false の場合は引き続き waiting_for_reach_=true のまま
+  // 次のタイマー呼び出しでまた判定を続ける
+}
 };
 
 int main(int argc, char **argv) {
