@@ -17,6 +17,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+def parse_phases(specs):
+    """--phase 'LABEL:t0:t1' を [(label, t0, t1), ...] に変換"""
+    phases = []
+    for s in specs:
+        # ラベルにコロンが入っても右から2つだけ分割
+        label, t0, t1 = s.rsplit(':', 2)
+        phases.append((label.strip(), float(t0), float(t1)))
+    return phases
 
 def plot_eval(
     df,
@@ -40,6 +48,9 @@ def plot_eval(
     use_mm=False,
     swap_uv=False,
     paper_view=False,        # 見た目だけ写真向き：x= v(左＋), y= u(下＋)
+    phases=None,               # ← 追加: [(" (i) Sec3 only", 15, 55), ...]
+    annotate_phases=False,     # ← 追加: True で描画
+    phase_alpha=0.15,          # ← 追加: 縦帯の濃さ
 ):
     """
     必要な列:
@@ -142,12 +153,25 @@ def plot_eval(
         x_model, y_model,
         color="C0", linewidth=line_model_width, label="model (PCC)",
     )
-    ax_top.plot(
-        x_meas, y_meas,
-        color="C1", linewidth=line_meas_width,
-        marker=meas_marker, markersize=meas_markersize,
-        markevery=meas_markevery, label="meas (Aruco)",
-    )
+
+    if annotate_phases and phases:
+        # 全体の実測を薄く敷く（任意）
+        ax_top.plot(x_meas, y_meas, color="C1", linewidth=line_meas_width*0.6, alpha=0.35,
+                    label="meas (Aruco)")
+        # 区間ごとに “同じ色(C1=橙)” で上書き
+        phase_line_kwargs = dict(color="C1",
+                                linewidth=line_meas_width,
+                                marker=meas_marker,
+                                markersize=meas_markersize,
+                                markevery=max(1, meas_markevery//2))
+        for (label, t0, t1) in phases:
+            m = (t_arr >= t0) & (t_arr < t1)
+            ax_top.plot(x_meas[m], y_meas[m], **phase_line_kwargs)
+    else:
+        ax_top.plot(x_meas, y_meas, color="C1", linewidth=line_meas_width,
+                    marker=meas_marker, markersize=meas_markersize,
+                    markevery=meas_markevery, label="meas (Aruco)")
+
 
     ax_top.set_xlabel(x_label)
     ax_top.set_ylabel(y_label)
@@ -169,10 +193,10 @@ def plot_eval(
     ax_top.set_title("Trajectory on base plane")
 
     # 上段の plot 後に追加
-    ax_top.plot(x_model[0], y_model[0], 's', ms=6, color='C0')
-    ax_top.plot(x_meas[0],  y_meas[0],  's', ms=6, color='C1')
-    ax_top.plot(x_model[-1], y_model[-1], '^', ms=6, color='C0')
-    ax_top.plot(x_meas[-1],  y_meas[-1],  '^', ms=6, color='C1')
+    # ax_top.plot(x_model[0], y_model[0], 's', ms=6, color='C0')
+    # ax_top.plot(x_meas[0],  y_meas[0],  's', ms=6, color='C1')
+    # ax_top.plot(x_model[-1], y_model[-1], '^', ms=6, color='C0')
+    # ax_top.plot(x_meas[-1],  y_meas[-1],  '^', ms=6, color='C1')
 
     # ===== 下段: 誤差 vs 時間 =====
     ax_bot.plot(t_arr, err_plot, color="C0", linewidth=line_err_width, label="‖e‖")
@@ -185,6 +209,25 @@ def plot_eval(
     ax_bot.legend(loc="best", framealpha=0.9)
     ax_bot.set_title("Plane error over time")
 
+
+    # ← ここから追加
+    if annotate_phases and phases:
+        ymin, ymax = ax_bot.get_ylim()
+        # 交互に少し違う明度にして見分けやすく
+        colors = ['0.90', '0.85']
+        boundaries = set()
+        for i, (label, t0, t1) in enumerate(phases):
+            ax_bot.axvspan(t0, t1, facecolor=colors[i % 2], alpha=phase_alpha,
+                        edgecolor='none', zorder=0)
+            boundaries.update([t0, t1])
+            # 目立つラベル（白地の小さな枠付き）
+            ax_bot.text((t0 + t1)/2, ymax*0.96, label, ha='center', va='top',
+                        fontsize=12,
+                        bbox=dict(boxstyle='round,pad=0.2', fc='white', ec='0.6', alpha=0.9),
+                        zorder=5)
+        # フェーズ境界を破線で強調
+        for b in sorted(boundaries):
+            ax_bot.axvline(b, color='0.4', linestyle='--', linewidth=1.0, zorder=1)
     # mean = np.mean(err_plot); med = np.median(err_plot); p95 = np.percentile(err_plot, 95)
     # ax_bot.text(0.99, 0.98,
     #             f"mean {mean*1000:.1f} mm\nmedian {med*1000:.1f} mm\n95% {p95*1000:.1f} mm",
@@ -214,11 +257,18 @@ def main():
                         help='写真の見え方に合わせて x=v(左＋), y=u(下＋) で描画（データは不変）')
     parser.add_argument('--equal', action='store_true',
                         help='u-vを等方表示（アスペクト比1）')
+    parser.add_argument('--annotate-phases', action='store_true',
+                        help='(i)(ii)(iii) の時間区間を図に注記する')
+    parser.add_argument('--phase', action='append', default=[], metavar='"LABEL:t0:t1"',
+                        help='区間を追加（秒）。例: --phase "(i) Sec3 only:15:55"')
+
 
     args = parser.parse_args()
 
     # CSV読み込み
     df = pd.read_csv(args.csv)
+
+    phases = parse_phases(args.phase) if args.phase else None
 
     # 図を作成
     fig = plot_eval(
@@ -227,6 +277,8 @@ def main():
         swap_uv=args.swap_uv,
         paper_view=args.paper_view,
         uv_aspect=("equal" if args.equal else "auto"),
+        phases=phases,
+        annotate_phases=args.annotate_phases,
     )
 
     # 保存モード or 表示モード

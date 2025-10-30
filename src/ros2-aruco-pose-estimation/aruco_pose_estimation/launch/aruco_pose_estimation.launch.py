@@ -127,8 +127,8 @@ def generate_launch_description():
             "align_depth.enable": "true",
             "enable_color": "true",
             "enable_depth": "true",
-            # ▼ 解像度 / FPS
-            "rgb_camera.color_profile": "1280x720x30",    # 720p30
+            # # ▼ 解像度 / FPS
+            "rgb_camera.color_profile": "1920x1080x30",    # 720p30
             "depth_module.depth_profile": "640x480x30",   # 640x480x30 など
 
             # ▼ カラー露出（まずはオートOFF）

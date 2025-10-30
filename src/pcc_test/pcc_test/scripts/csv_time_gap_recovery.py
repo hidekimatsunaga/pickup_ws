@@ -8,9 +8,9 @@ from datetime import datetime
 # ...existing code...
 # ===== CONFIG (ここを編集すれば動作を変更できます) =====
 # 入力 CSV（フルパスか相対パス）
-INPUT_CSV = 'src/pcc_test/pcc_test/lut_csv/uv_compare_1029.csv'
+INPUT_CSV = '/home/matsunaga-h/pickup_ws/src/pcc_test/pcc_test/uv_compare_thin2.csv'
 # ギャップ判定閾値 [s]（この値より大きければ詰める対象）
-GAP_THRESH = 0.5
+GAP_THRESH = 0.3
 # ギャップを詰めたあと残す幅 [s]（0.0 にすると完全に詰める）
 TARGET_GAP = 0.0
 # 出力ファイル（Noneなら INPUT_CSV+'_shifted.csv'）
