@@ -26,6 +26,45 @@ def parse_phases(specs):
         phases.append((label.strip(), float(t0), float(t1)))
     return phases
 
+def highlight_uv_ranges(
+    ax, u, v, ranges,
+    base_lw=1.0, base_alpha=0.5,
+    styles=None
+):
+    """
+    u,v: 1D配列（モデルでも実測でもOK）
+    ranges: [(i0,i1), ...]  0-based, i1は「含まない」終端
+    styles: 各区間の見た目（lw, alpha, lsなど）を辞書で指定
+    """
+    u = np.asarray(u); v = np.asarray(v)
+
+    # 全体は薄く一本
+    ax.plot(u, v, lw=base_lw, alpha=base_alpha, zorder=1)
+
+    # 区間ごとのデフォルト（濃さ・太さを段階的に変える）
+    default_styles = [
+        dict(lw=1.0, alpha=0.5, ls='--'),   # (i) いちばん目立たせる
+        dict(lw=2.4, alpha=0.85, ls='-'),   # (ii) 少し控えめ
+        dict(lw=4.0, alpha=1.00, ls='--'),  # (iii) さらに控えめ（破線）
+    ]
+    if styles is None:
+        styles = default_styles
+    else:
+        # 渡されたstylesをデフォルトに上書きマージ
+        merged = []
+        for k,(i0,i1) in enumerate(ranges):
+            base = default_styles[k % len(default_styles)].copy()
+            base.update(styles[k % len(styles)])
+            merged.append(base)
+        styles = merged
+
+    # 各区間だけ太く重ね描き
+    for k, (i0, i1) in enumerate(ranges):
+        i0 = max(0, int(i0)); i1 = min(len(u), int(i1))
+        if i1 - i0 <= 1:  # 点数が少なすぎたらスキップ
+            continue
+        ax.plot(u[i0:i1], v[i0:i1], zorder=3, **styles[k % len(styles)])
+
 def plot_eval(
     df,
     fig_size=(10, 8),
@@ -155,24 +194,56 @@ def plot_eval(
     )
 
     if annotate_phases and phases:
-        # 全体の実測を薄く敷く（任意）
-        ax_top.plot(x_meas, y_meas, color="C1", linewidth=line_meas_width*0.6, alpha=0.35,
+        # 全体は薄く一発
+        ax_top.plot(x_meas, y_meas, color="C1",
+                    linewidth=line_meas_width*0.5, alpha=0.25,
                     label="meas (Aruco)")
-        # 区間ごとに “同じ色(C1=橙)” で上書き
-        phase_line_kwargs = dict(color="C1",
-                                linewidth=line_meas_width,
-                                marker=meas_marker,
-                                markersize=meas_markersize,
-                                markevery=max(1, meas_markevery//2))
+
+        # --phase の時間→インデックス区間へ
+        idx_ranges = []
         for (label, t0, t1) in phases:
-            m = (t_arr >= t0) & (t_arr < t1)
-            ax_top.plot(x_meas[m], y_meas[m], **phase_line_kwargs)
+            idx = np.where((t_arr >= t0) & (t_arr < t1))[0]
+            if idx.size > 1:
+                idx_ranges.append((int(idx[0]), int(idx[-1]) + 1))
+
+        # ★ フェーズ共通のカラーパレット（(i),(ii),(iii)…）
+        phase_colors = ['C2', 'C3', 'C4', 'C5']
+
+        # フェーズごとのスタイル（線種/太さは好みで）
+        phase_styles = []
+        for i in range(len(idx_ranges)):
+            c = phase_colors[i % len(phase_colors)]
+            style = dict(
+                color=c, lw=3.0 if i == 0 else 2.6,
+                ls='-' if i != 1 else '--',
+                alpha=1.0,
+                marker=meas_marker, markersize=meas_markersize,
+                markevery=max(1, meas_markevery//2)
+            )
+            phase_styles.append(style)
+
+        # 区間だけ上書き描画（色は上で決めたものを使用）
+        highlight_uv_ranges(ax_top, x_meas, y_meas, idx_ranges,
+                            base_lw=0.0, base_alpha=0.0,
+                            styles=phase_styles)
+
     else:
         ax_top.plot(x_meas, y_meas, color="C1", linewidth=line_meas_width,
                     marker=meas_marker, markersize=meas_markersize,
                     markevery=meas_markevery, label="meas (Aruco)")
 
-
+    # --- ここから追記: インデックスで [i0,i1), [i2,i3) を太く ---
+    # ranges = [(50, 120), (180, 230)]  # ← 強調したい区間（例）
+    # styles = [
+    #     dict(color='C1', lw=3.2, alpha=1.0, ls='-'),    # (i) 太め・実線
+    #     dict(color='C1', lw=2.6, alpha=1.0, ls='--'),   # (ii) 少し細め・破線
+    #     dict(color='C1', lw=2.0, alpha=1.0, ls='-'),    # (iii) さらに控えめ（点線）
+    # ]
+    # highlight_uv_ranges(
+    #     ax_top, x_meas, y_meas, ranges,
+    #     base_lw=0.0, base_alpha=0.0,  # すでに全体を描いているのでベースは描かない
+    #     styles=styles
+    # )
     ax_top.set_xlabel(x_label)
     ax_top.set_ylabel(y_label)
 
@@ -213,18 +284,24 @@ def plot_eval(
     # ← ここから追加
     if annotate_phases and phases:
         ymin, ymax = ax_bot.get_ylim()
-        # 交互に少し違う明度にして見分けやすく
-        colors = ['0.90', '0.85']
+        phase_colors = ['C2', 'C3', 'C4', 'C5']  # ↑と同じ配列を使う
         boundaries = set()
+
         for i, (label, t0, t1) in enumerate(phases):
-            ax_bot.axvspan(t0, t1, facecolor=colors[i % 2], alpha=phase_alpha,
-                        edgecolor='none', zorder=0)
-            boundaries.update([t0, t1])
-            # 目立つラベル（白地の小さな枠付き）
-            ax_bot.text((t0 + t1)/2, ymax*0.96, label, ha='center', va='top',
-                        fontsize=12,
-                        bbox=dict(boxstyle='round,pad=0.2', fc='white', ec='0.6', alpha=0.9),
+            c = phase_colors[i % len(phase_colors)]
+            # 縦帯は同色で薄く
+            ax_bot.axvspan(t0, t1, facecolor=c, alpha=phase_alpha,
+                           edgecolor='none', zorder=0)
+            # フェーズ境界も同色の破線
+            for b in (t0, t1):
+                ax_bot.axvline(b, color=c, linestyle='--', linewidth=1.2, zorder=1)
+                boundaries.add(b)
+            # ラベルも同色で枠線だけ色付き
+            ax_bot.text((t0 + t1)/2, ymax*0.96, label,
+                        ha='center', va='top', fontsize=12, color=c,
+                        bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=c, alpha=0.95),
                         zorder=5)
+
         # フェーズ境界を破線で強調
         for b in sorted(boundaries):
             ax_bot.axvline(b, color='0.4', linestyle='--', linewidth=1.0, zorder=1)
