@@ -33,6 +33,7 @@ setup(
             'flag_relay_bridge = serial_transciever.relay_control.flag_relay_bridge:main',
             'auto_motor_publisher = serial_transciever.manipulator_control.auto_motor_publisher:main',
             'thread_slack_or_taut_node = serial_transciever.manipulator_control.thread_slack_or_taut_node:main',
+            'motor_angle_chokudo_publisher = serial_transciever.manipulator_control.motor_angle_chokudo_publisher:main',
         ],
     },
 )
