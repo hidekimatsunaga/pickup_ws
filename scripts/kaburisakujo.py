@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np # numpyをインポート
 
 # --- ファイルパスと設定 ---
-input_csv_file = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_175143_cleaned.csv'
-output_csv_file = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_175143_cleaneded.csv'
-threshold = 0.01  # 近いと判断する距離（この値を調整できます）
+input_csv_file = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_193312_cleaned.csv'
+output_csv_file = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_193312_cleaneded.csv'
+threshold = 0.005  # 近いと判断する距離（この値を調整できます）
 
 # 1. CSVファイルを読み込む
 df = pd.read_csv(input_csv_file)
