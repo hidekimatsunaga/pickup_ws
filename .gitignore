@@ -22,3 +22,4 @@ src/**/bags/**
 *.mcap
 metadata.yaml
 *.bag
+src/pcc_test/bags/
