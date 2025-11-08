@@ -27,4 +27,4 @@ ros2 bag record \
     /vacuum_flag \
     --compression-mode file \
     --compression-format zstd \
-    -o ~/bags/record_$(date +%Y%m%d_%H%M%S)
+    -o ~/pickup_ws/bags/record_$(date +%Y%m%d_%H%M%S)

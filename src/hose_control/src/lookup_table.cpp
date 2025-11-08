@@ -32,7 +32,7 @@ public:
     this->declare_parameter<double>("air_threshold", -110.0);
     this->get_parameter("air_threshold", air_threshold_);
 
-    load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_0928_161517.csv");
+    load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_175143_cleaneded.csv");
     
     // ★ 修正点2: 型の違う2次元ベクトルの正しいコピー
     sequence_data_.clear();
