@@ -278,9 +278,9 @@ private:
     RCLCPP_INFO(this->get_logger(), "Published interpolated motor1-9: %s, motor10: %.2f", ss.str().c_str(), interpolated_motor10);
 }
 // ★追加：モーターの現在角度を受け取ったときのコールバック関数
+  // ★修正：モーターの現在角度を受け取ったときのコールバック関数
   void currentAnglesCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
   {
-    // ★ 修正点3: 型の違うベクターの正しい代入
     current_motor_angles_.assign(msg->data.begin(), msg->data.end());
 
     // シーケンスモードでなければ何もしない
@@ -288,20 +288,22 @@ private:
       return;
     }
 
-    // 目標の角度（シーケンスの現在のステップ）を取得
-    const auto& target_angles = sequence_data_[sequence_step_];
-    // // --- ここからログ出力の追加 ---
-    // std::stringstream ss_target, ss_current;
-    // for(const auto& angle : target_angles) ss_target << std::fixed << std::setprecision(2) << angle << " ";
-    // for(const auto& angle : current_motor_angles_) ss_current << std::fixed << std::setprecision(2) << angle << " ";
+    // ★修正：目標の角度（シーケンスの現在のステップ）を取得
+    const auto& target_data = sequence_data_[sequence_step_]; // 10要素すべてを取得
     
-    // RCLCPP_INFO(this->get_logger(), "--------------------");
-    // RCLCPP_INFO(this->get_logger(), "目標角度: [ %s]", ss_target.str().c_str());
-    // RCLCPP_INFO(this->get_logger(), "現在角度: [ %s]", ss_current.str().c_str());
-    // // --- ログ出力の追加ここまで ---
+    if (target_data.size() != 10) {
+        RCLCPP_ERROR_ONCE(this->get_logger(), "Sequence data is invalid (not 10 elements). Halting sequence check.");
+        return;
+    }
 
-    // 現在の角度が目標に到達したかチェック
-    if (isCloseToTarget(target_angles, current_motor_angles_)) {
+    // ★修正：motor1-9 の 9要素だけを比較用のベクターにコピー
+    std::vector<double> target_angles_9(target_data.begin(), target_data.begin() + 9);
+
+    // (デバッグログも必要に応じて修正してください)
+    // ...
+
+    // ★修正：9要素の目標角度と、現在の角度（current_motor_angles_）を比較
+    if (isCloseToTarget(target_angles_9, current_motor_angles_)) {
       RCLCPP_INFO(this->get_logger(), "Sequence step %d reached.", sequence_step_);
 
       // 次のステップに進める
@@ -334,15 +336,30 @@ private:
     return true; // 全て許容誤差内ならtrue
   }
 
-  // ★追加：シーケンスの現在のステップの角度をパブリッシュする関数
+// ★修正：シーケンスの現在のステップの角度をパブリッシュする関数
   void publishSequenceStep() {
     RCLCPP_INFO(this->get_logger(), "Publishing sequence step %d.", sequence_step_);
-    std_msgs::msg::Float32MultiArray angle_msg;
-    const auto& target_angles = sequence_data_[sequence_step_];
-    for(const auto& angle : target_angles){
-      angle_msg.data.push_back(static_cast<float>(angle));
+    
+    const auto& target_data = sequence_data_[sequence_step_]; // 10要素のデータを取得
+    
+    // ★追加：データの個数をチェック
+    if (target_data.size() != 10) {
+        RCLCPP_ERROR(this->get_logger(), "Sequence data for step %d has %zu elements, expected 10.", 
+                     sequence_step_, target_data.size());
+        return;
     }
+
+    // ★修正：最初の9要素を /motor_angles (motor1-9) にパブリッシュ
+    std_msgs::msg::Float32MultiArray angle_msg;
+    angle_msg.data.assign(target_data.begin(), target_data.begin() + 9);
     pub_->publish(angle_msg);
+
+    // ★修正：最後の1要素 (10番目) を /chokudomotor/target_angle (motor10) にパブリッシュ
+    std_msgs::msg::Float32 motor10_msg;
+    motor10_msg.data = static_cast<float>(target_data[9]); // 10番目の要素 (インデックスは9)
+    pub_motor10_->publish(motor10_msg);
+    
+    RCLCPP_INFO(this->get_logger(), "Published seq motors 1-9 and motor10: %.2f", motor10_msg.data);
   }
 };
 
