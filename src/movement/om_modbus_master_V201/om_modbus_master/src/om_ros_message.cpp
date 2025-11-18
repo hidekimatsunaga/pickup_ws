@@ -65,8 +65,8 @@ using namespace std::chrono_literals;
 
 namespace om_modbusRTU_node {
 
-RosMessage::RosMessage() : stop_thread_(false) { 
-  isCommEnabled_ = false; 
+RosMessage::RosMessage() : stop_thread_(false){ 
+  isCommEnabled_ = false;
 }
 
 RosMessage::~RosMessage() { timer_.reset(); 
@@ -422,8 +422,11 @@ void RosMessage::init(Base *pObj, std::shared_ptr<ICheckData> check_obj[], IChec
 * @note
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 void RosMessage::queryCallback(const om_msgs::msg::Query::SharedPtr msg) {
+  //こいつがとまる
+  // RCLCPP_INFO(node_->get_logger(), "queryCallback is executed");
   last_execution_time = std::chrono::high_resolution_clock::now();//実行時刻を保持MRI6/16
   if (false == isCommEnabled_) {
+    // RCLCPP_INFO(node_->get_logger(), "Callback");
     isCommEnabled_ = true;
     state_msg_.state_driver = STATE_DRIVER_COMM;
     state_msg_.state_mes = STATE_MES_REACH;
@@ -434,13 +437,14 @@ void RosMessage::queryCallback(const om_msgs::msg::Query::SharedPtr msg) {
       // id share modeかどうかで別の範囲チェック判定を行う
       flowCtrlIdShare(msg);
 
-      pObj->setData(msg);
+      pObj->setData(msg);//こいつをtimemoniter関数で動かす
     } catch (int error) {
       dispErrorMessage(error);
       isCommEnabled_ = false;
       state_msg_.state_driver = STATE_DRIVER_NONE;
       state_msg_.state_mes = STATE_MES_ERROR;
     }
+    // RCLCPP_INFO(node_->get_logger(), "check end\n");
   } else if (true == isCommEnabled_) {
     RCLCPP_INFO(node_->get_logger(), "Driver is busy");
   }
@@ -457,14 +461,15 @@ void RosMessage::monitoringFunction(){
       ISetMessage *pObj = base_obj_;  // Base型
       pObj->setQueryData(2,0);
       pObj->setQueryData(8,0);
-      RCLCPP_INFO(node_->get_logger(), "set");
+      // RCLCPP_INFO(node_->get_logger(), "set");
       // base_obj_->setQueryData(2,0);
       // base_obj_->setQueryData(8,0);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));//10msごとにチェック
   }
 }
-/*---------------------------------------------------------------------------*/
+
+/*-------------------------- -------------------------------------------------*/
 /** トピック名の作成
 
 * @param[in]	int num		数値

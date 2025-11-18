@@ -51,7 +51,7 @@ class Base : public ISetMessage {
   rclcpp::Node::SharedPtr node_;
 
   bool is_enabled_;
-  // std::chrono::time_point<std::chrono::high_resolution_clock> last_execution_time;//6/4MRI自作
+  std::chrono::time_point<std::chrono::high_resolution_clock> last_execution_time;//6/4MRI自作
   int socket_fd_;
   std::string topic_com_;
   int topic_baudrate_;
@@ -116,7 +116,7 @@ class Base : public ISetMessage {
   const static int CRC_INIT_VALUE = 0xFFFF;  // CRCの初期値
 
   void chkResponseLength(char *pFrm, int len);
-  void closeComm(void);
+  // void closeComm(void);
   int commRead(int fd, char *rdData, int rdLen);
   int commWrite(int fd, std::vector<char> &wrData);
   void dispErrorMessage(int error);
@@ -150,6 +150,12 @@ class Base : public ISetMessage {
             IServerParamCommunicator *server_param_communicator, rclcpp::Node::SharedPtr om_node);
   void setData(const om_msgs::msg::Query::SharedPtr msg) override;
   void setQueryData(int index, int value) override;
+  void closeComm(void);
+  // void setQueryData(int index, int value){//queryCallback
+  //   if(index >= 0 && index < MAX_DATA_NUM){
+  //     query_data_.data[index] = value;
+  //   }
+  // }
 };
 
 }  // namespace om_modbusRTU_node

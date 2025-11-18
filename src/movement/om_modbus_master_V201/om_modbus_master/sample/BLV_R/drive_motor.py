@@ -151,7 +151,7 @@ class MySubscription(Node):
             return
         # ID Shareモードのとき
         #if True:
-        if self.is_idshare(res) and (res.func_code == 0x03):
+        if(res.func_code == 0x03):
             axis_num = self.ca.get_parameters_from_another_node("om_node", ["axis_num"])
             if dt2 != 0:
                 delta = dt1-dt2
@@ -229,7 +229,7 @@ class MyPublisher(Node):
         super().__init__("my_pub")
         self.seq = 0
         self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
-        self.timer = self.create_timer(0.05, self.timer_callback)
+        self.timer = self.create_timer(0.1, self.timer_callback)
         self.ca = ClientAsync("pub")
 
         def __del__(self):
@@ -507,24 +507,24 @@ class MyPublisher(Node):
             pass
 
 
-class MyPublisherPolling(Node):
-    def __init__(self):
-        super().__init__("my_pub_polling")
-        self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
-        self.timer = self.create_timer(0.1, self.timer_callback)
+# class MyPublisherPolling(Node):
+#     def __init__(self):
+#         super().__init__("my_pub_polling")
+#         self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
+#         self.timer = self.create_timer(0.1, self.timer_callback)
 
-    # 一定周期で実行する処理
-    def timer_callback(self):
-        global msg
+#     # 一定周期で実行する処理
+#     def timer_callback(self):
+#         global msg
 
-        if _state_driver == 1:
-            return
-        if _is_timer_active:
-            msg.slave_id = 10  # スレーブID指定(ID Shareモードのときはglobal_idとみなされる)
-            msg.func_code = 0  # 0:Read
-            msg.read_addr = 0x000E  # 読み出すアドレスの起点
-            msg.read_num = 3  # 各軸1個ずつ
-            self.pub.publish(msg)  # 配信する
+#         if _state_driver == 1:
+#             return
+#         if _is_timer_active:
+#             msg.slave_id = 10  # スレーブID指定(ID Shareモードのときはglobal_idとみなされる)
+#             msg.func_code = 0  # 0:Read
+#             msg.read_addr = 0x000E  # 読み出すアドレスの起点
+#             msg.read_num = 3  # 各軸1個ずつ
+#             self.pub.publish(msg)  # 配信する
 
 
 def main(args=None):
@@ -552,13 +552,13 @@ def main(args=None):
         i=True
     except KeyboardInterrupt:
         # pub1.get_logger().info("Keyboard Interrupt")
-        pub1.seq = 4
-        time.sleep(0.5)
-        pub1.destroy_node()
-        # pub2.destroy_node()
-        sub.destroy_node()
-        sub_2.destroy_node()
-        rclpy.shutdown()
+        # pub1.seq = 4
+        # time.sleep(0.5)
+        # pub1.destroy_node()
+        # # pub2.destroy_node()
+        # sub.destroy_node()
+        # sub_2.destroy_node()
+        # rclpy.shutdown()
         pub1.get_logger().info("python fin.")
         i=False
     finally:

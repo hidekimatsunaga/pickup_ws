@@ -14,4 +14,14 @@ def generate_launch_description():
             executable='chokudo_cameraswing_air_serial_node',
             name='angle_chokudo_node',
         ),
+        Node(
+            package='serial_transciever',
+            executable='relay_controller',
+            name='relay_controller',
+        ),
+        Node(
+            package='serial_transciever',
+            executable='flag_relay_bridge',
+            name='flag_relay_bridge',
+        ),
     ])
