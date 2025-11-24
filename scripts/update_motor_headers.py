@@ -5,8 +5,8 @@ from pathlib import Path
 # ====== 設定ここから ======
 # それぞれ自分の環境のパスに変えてね
 STOP_HPP_PATH    = Path("/home/matsunaga-h/pickup_ws/src/hose_control/include/hose_control/motor_initial_position.hpp")
-PICKUP_HPP_PATH  = Path("/home/matsunaga-h/pickup_ws/src/hose_control/include/hose_control/pickup_sequence.hpp")
-NARROW_HPP_PATH  = Path("/home/matsunaga-h/pickup_ws/src/hose_control/include/hose_control/narrow_sequence.hpp")
+PICKUP_HPP_PATH  = Path("/home/matsunaga-h/pickup_ws/src/hose_control/include/hose_control/motor_pickup_position.hpp")
+NARROW_HPP_PATH  = Path("/home/matsunaga-h/pickup_ws/src/hose_control/include/hose_control/narrow_space_controll_position.hpp")
 
 # キャリブレーションノードの最後のログ
 #   MOTOR_INIT_POS = [a0, a1, ..., a9]
@@ -64,7 +64,7 @@ def update_stop_hpp(src: str, new_angles, new_10, digits: int = 2) -> str:
     new_angles_str = ", ".join(format_float(a, digits, True) for a in new_angles)
     src = re.sub(
         r"(std::vector<float>\s+stop_angles_\s*=\s*\{)[^}]*(\};)",
-        r"\1" + new_angles_str + r"\2",
+        r"\g<1>" + new_angles_str + r"\g<2>",
         src,
         flags=re.DOTALL
     )
@@ -73,7 +73,7 @@ def update_stop_hpp(src: str, new_angles, new_10, digits: int = 2) -> str:
     new_10_str = format_float(new_10, digits, True)
     src = re.sub(
         r"(float\s+stop_motor10_angle_\s*=\s*)[-\d\.]+f?(\s*;)",
-        r"\1" + new_10_str + r"\2",
+        r"\g<1>" + new_10_str + r"\g<2>",
         src
     )
     return src
