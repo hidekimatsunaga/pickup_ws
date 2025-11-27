@@ -74,7 +74,7 @@ def plot_eval(
     line_meas_width=1.5,
     line_err_width=1.6,
     meas_marker='o',
-    meas_markersize=3,
+    meas_markersize=4,
     meas_markevery=5,        # 実測マーカー間引き
     grid_alpha=0.3,
     grid_lw=0.5,
@@ -90,6 +90,11 @@ def plot_eval(
     phases=None,               # ← 追加: [(" (i) Sec3 only", 15, 55), ...]
     annotate_phases=False,     # ← 追加: True で描画
     phase_alpha=0.15,          # ← 追加: 縦帯の濃さ
+    # ===== 接続表示 (モデルと実測を同時刻で結ぶ線) =====
+    connect_step=0,           # 0 = off, >0 = Nで間引いて描画
+    connect_lw=0.8,
+    connect_alpha=0.7,
+    connect_color='0.6',
 ):
     """
     必要な列:
@@ -179,8 +184,10 @@ def plot_eval(
     if paper_view:
         x_model, y_model = v_model_plot, u_model_plot
         x_meas,  y_meas  = v_meas_plot,  u_meas_plot
-        x_label = "v (left +)" + unit_uv
-        y_label = "u (down +)" + unit_uv
+        # x_label = "v (left +)" + unit_uv
+        # y_label = "u (down +)" + unit_uv
+        x_label = "v" + unit_uv
+        y_label = "u" + unit_uv
         # 範囲指定は「uの範囲→y」「vの範囲→x」へ入れ替え
         xlim_to_apply = uv_ylim_scaled
         ylim_to_apply = uv_xlim_scaled
@@ -188,16 +195,17 @@ def plot_eval(
         x_invert = True   # 右がマイナス、左がプラスに見える
         y_invert = True   # 上がマイナス、下がプラスに見える
 
+    # モデルは目立たせつつ過度に太くしない
     ax_top.plot(
         x_model, y_model,
-        color="C0", linewidth=line_model_width, label="model (PCC)",
+        color="C8", linewidth=line_model_width * 1.6, label="model (PCC)", zorder=2,
     )
 
     if annotate_phases and phases:
-        # 全体は薄く一発
+        # 全体は一発で描く（測定は目立つ色で）
         ax_top.plot(x_meas, y_meas, color="C1",
-                    linewidth=line_meas_width*0.5, alpha=0.25,
-                    label="meas (Aruco)")
+                linewidth=line_meas_width, alpha=0.9,
+                label="meas (Aruco)")
 
         # --phase の時間→インデックス区間へ
         idx_ranges = []
@@ -227,10 +235,49 @@ def plot_eval(
                             base_lw=0.0, base_alpha=0.0,
                             styles=phase_styles)
 
+        # --- モデルもフェーズごとに色分けして強調表示 ---
+        # ベースで全体を描いているので、フェーズ区間だけ上書きする
+        model_phase_styles = []
+        for i in range(len(idx_ranges)):
+            c = phase_colors[i % len(phase_colors)]
+            mstyle = dict(
+                color=c,
+                lw=(line_model_width * 1.8) if i == 0 else (line_model_width * 1.4),
+                ls='-' if i != 1 else '--',
+                alpha=0.98,
+            )
+            model_phase_styles.append(mstyle)
+
+        for k, (i0, i1) in enumerate(idx_ranges):
+            i0 = max(0, int(i0)); i1 = min(len(x_model), int(i1))
+            if i1 - i0 <= 1:
+                continue
+            ax_top.plot(x_model[i0:i1], y_model[i0:i1], zorder=4,
+                        **model_phase_styles[k % len(model_phase_styles)])
     else:
         ax_top.plot(x_meas, y_meas, color="C1", linewidth=line_meas_width,
                     marker=meas_marker, markersize=meas_markersize,
                     markevery=meas_markevery, label="meas (Aruco)")
+
+    # --- オプション: 同一時刻のモデルと実測を結ぶ線を描画 ---
+    if connect_step and connect_step > 0:
+        idxs = np.arange(0, len(x_meas), connect_step)
+        # フェーズ指定があればフェーズ色で、なければグレーで描画
+        if annotate_phases and phases:
+            phase_colors = ['C2', 'C3', 'C4', 'C5']
+            for i in idxs:
+                # 時刻に対応するフェーズ色を決定
+                c = connect_color
+                for pi, (_lab, t0, t1) in enumerate(phases):
+                    if t_arr[i] >= t0 and t_arr[i] < t1:
+                        c = phase_colors[pi % len(phase_colors)]
+                        break
+                ax_top.plot([x_model[i], x_meas[i]], [y_model[i], y_meas[i]],
+                            color=c, lw=connect_lw, alpha=connect_alpha, zorder=2)
+        else:
+            for i in idxs:
+                ax_top.plot([x_model[i], x_meas[i]], [y_model[i], y_meas[i]],
+                            color=connect_color, lw=connect_lw, alpha=connect_alpha, zorder=2)
 
     # --- ここから追記: インデックスで [i0,i1), [i2,i3) を太く ---
     # ranges = [(50, 120), (180, 230)]  # ← 強調したい区間（例）
@@ -336,6 +383,8 @@ def main():
                         help='u-vを等方表示（アスペクト比1）')
     parser.add_argument('--annotate-phases', action='store_true',
                         help='(i)(ii)(iii) の時間区間を図に注記する')
+    parser.add_argument('--connect', type=int, default=0,
+                        help='同一時刻のモデルと実測を結ぶ線をNごとに描画 (0=無効)')
     parser.add_argument('--phase', action='append', default=[], metavar='"LABEL:t0:t1"',
                         help='区間を追加（秒）。例: --phase "(i) Sec3 only:15:55"')
 
@@ -356,6 +405,7 @@ def main():
         uv_aspect=("equal" if args.equal else "auto"),
         phases=phases,
         annotate_phases=args.annotate_phases,
+        connect_step=args.connect,
     )
 
     # 保存モード or 表示モード
