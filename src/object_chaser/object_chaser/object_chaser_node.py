@@ -27,7 +27,7 @@ class ObjectChaserNode(Node):
             Float32, '/cameraswingmotor/angle', self.camera_angle_callback, 10)
 
         # === 状態保持用の変数 ===
-        self.current_camera_angle_deg = None # 現在のカメラ角度（度数法）
+        self.current_camera_angle_deg = None  # 現在のカメラ角度（度数法）
 
         # === 制御パラメータ (ロボット移動) ===
         self.target_frame = 'base_link'
@@ -36,12 +36,21 @@ class ObjectChaserNode(Node):
         self.kp_linear = 0.6            # 距離に対する比例ゲイン
         self.kp_angular = 0.1           # 角度に対する比例ゲイン
         self.max_linear_speed = 0.1     # 最大並進速度 [m/s]
-        self.max_angular_speed = 0.1   # 最大旋回速度 [rad/s]
+        self.max_angular_speed = 0.05    # 最大旋回速度 [rad/s]
         
-        # === 制御パラメータ (カメラ追従) ===
-        self.kp_camera_swing = -1.0     # 角度(rad)ベースの比例ゲイン (要調整！)
-        self.min_camera_angle_deg = 17.6 # カメラの物理的な可動範囲の下限 (度)
-        self.max_camera_angle_deg = 63.9 # カメラの物理的な可動範囲の上限 (度)
+        # === 制御パラメータ (カメラの「距離に応じた」下向き制御) ===
+        # 例：
+        #   d >= 2.0 m  → 30度
+        #   d <= 0.5 m  → 60度（かなり下向き）
+        # この間は線形で変化
+        self.far_distance = 2.0         # これより遠いときの距離 [m]
+        self.near_distance = 0.5        # これより近いときの距離 [m]（だいたい target_distance と一致させる）
+        self.far_camera_angle_deg = 30.0  # 遠いときのカメラ角度 [deg]
+        self.near_camera_angle_deg = 60.0 # 近いときのカメラ角度 [deg]
+
+        # 物理的な可動範囲（安全のためのクランプ）
+        self.min_camera_angle_deg = 17.6  # 下限
+        self.max_camera_angle_deg = 63.9  # 上限
 
         # タイムアウト処理用
         self.last_detection_time = self.get_clock().now()
@@ -49,6 +58,10 @@ class ObjectChaserNode(Node):
         self.get_logger().info("Object Chaser Node has been started.")
 
         self.completion_notified = False
+
+    # =========================================================
+    #  コールバック
+    # =========================================================
 
     def camera_angle_callback(self, msg: Float32):
         """現在のカメラ角度を常に更新するコールバック"""
@@ -58,65 +71,85 @@ class ObjectChaserNode(Node):
         """物体を検出したときに呼ばれるメインのコールバック"""
         self.last_detection_time = self.get_clock().now()
 
-        # --- 処理1: カメラの追従制御 ---
-        # msgはカメラ座標系での物体の3次元位置
-        camera_frame_y = msg.point.y
-        camera_frame_z = msg.point.z
-        self.control_camera_swing(camera_frame_y, camera_frame_z)
+        # ↓↓↓ ここでは camera_frame の y,z はもう使わない
+        # msg は camera_color_optical_frame での 3D 位置
+        # ロボット制御 & カメラ制御ともに base_link 座標に変換して距離 d を使う
 
-        # --- 処理2: ロボット本体の移動制御 ---
         try:
             transform = self.tf_buffer.lookup_transform(
                 self.target_frame, msg.header.frame_id, rclpy.time.Time())
             point_in_base_link = do_transform_point(msg, transform)
-            self.execute_robot_control(point_in_base_link.point.x, point_in_base_link.point.y)
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
-            self.get_logger().error(f'Could not transform point for robot control: {e}')
+            self.get_logger().error(f'Could not transform point: {e}')
             return
 
-    def control_camera_swing(self, y_pos, z_pos):
-        """物体の3次元Y,Z座標からカメラの目標角度を計算してパブリッシュする"""
+        # base_link 座標系
+        target_x = point_in_base_link.point.x
+        target_y = point_in_base_link.point.y
+        distance = math.sqrt(target_x**2 + target_y**2)
+
+        # --- 処理1: ロボット本体の移動制御 ---
+        self.execute_robot_control(target_x, target_y, distance)
+
+        # --- 処理2: 距離に応じてカメラを徐々に下向きにする ---
+        self.control_camera_swing(distance)
+
+    # =========================================================
+    #  カメラ制御（距離 d ベース）
+    # =========================================================
+    def control_camera_swing(self, distance: float):
+        """
+        ロボット〜物体の距離[m] から、カメラの目標角度[deg]を決めてパブリッシュする。
+        近づくほど徐々に下向きにし、最終的には near_camera_angle_deg まで下げる。
+        """
         if self.current_camera_angle_deg is None:
-            self.get_logger().warn("Current camera angle not received yet.", throttle_duration_sec=5)
-            return
-            
-        # Zが0に近い(近すぎる)場合は計算しない
-        if abs(z_pos) < 0.6:
+            self.get_logger().warn("Current camera angle not received yet.", throttle_duration_sec=5.0)
             return
 
-        # YとZから、カメラ正面からの垂直方向の角度ズレを計算 (結果はラジアン)
-        angle_error_rad = math.atan2(y_pos, z_pos)
-        
-        # 現在の角度をラジアンに変換
-        current_camera_angle_rad = math.radians(self.current_camera_angle_deg)
-        
-        # 新しい目標角度を計算 (現在の角度 - 補正量)
-        # kpがマイナスなので、ズレ(angle_error_rad)を引くことで追従する
-        new_target_angle_rad = current_camera_angle_rad - (self.kp_camera_swing * angle_error_rad)
+        d_far = self.far_distance
+        d_near = self.near_distance
 
-        # ラジアンを度数法に戻す
-        new_target_angle_deg = math.degrees(new_target_angle_rad)
+        if distance >= d_far:
+            target_deg = self.far_camera_angle_deg
+        elif distance <= d_near:
+            target_deg = self.near_camera_angle_deg
+        else:
+            # 線形補間：
+            # d_far → d_near に近づくにつれて angle が far_angle → near_angle に変化
+            ratio = (distance - d_near) / (d_far - d_near)  # d=d_far → 1, d=d_near → 0
+            target_deg = self.near_camera_angle_deg + (self.far_camera_angle_deg - self.near_camera_angle_deg) * ratio
 
-        # 物理的な可動範囲内に目標値を制限 (クランプ)
-        new_target_angle_deg = max(self.min_camera_angle_deg, min(self.max_camera_angle_deg, new_target_angle_deg))
+        # 物理的な可動範囲でクランプ
+        target_deg = max(self.min_camera_angle_deg, min(self.max_camera_angle_deg, target_deg))
 
-        self.get_logger().info(f"カメラへの指令角度: {new_target_angle_deg:.2f} 度")
-
-        # 新しい目標角度をパブリッシュ
+        # 実際にパブリッシュ
         cmd_msg = Float32()
-        cmd_msg.data = new_target_angle_deg
+        cmd_msg.data = target_deg
         self.camera_swing_pub.publish(cmd_msg)
 
-    def execute_robot_control(self, target_x, target_y):
+        # デバッグ（うるさかったらコメントアウト）
+        self.get_logger().info(f"[Camera] distance={distance:.2f} m → target_angle={target_deg:.2f} deg")
+
+    # =========================================================
+    #  ロボット制御
+    # =========================================================
+    def execute_robot_control(self, target_x, target_y, distance=None):
         """ロボット基準のX,Y座標からcmd_velを計算してパブリッシュする"""
-        distance = math.sqrt(target_x**2 + target_y**2)
+        if distance is None:
+            distance = math.sqrt(target_x**2 + target_y**2)
+
         self.get_logger().info(f"物体までの計算上の距離: {distance:.2f} m")
 
-        angle_to_target = math.atan2(target_y, target_x)
+        # 目標： base_link から見たとき (x, y) = (target_distance, 0) にしたい
+        err_x = target_x - self.target_distance   # 前後方向の誤差
+        err_y = target_y - 0.0                    # 横方向の誤差
+
+        # 距離ベースの到達判定（今まで通り）
         distance_error = distance - self.target_distance
 
         cmd = Twist()
 
+        # 目標距離に到達したかどうか
         if abs(distance_error) < self.stop_threshold:
             self.stop_robot()
             self.get_logger().info("Target distance reached.")
@@ -130,22 +163,25 @@ class ObjectChaserNode(Node):
 
         self.completion_notified = False
 
-        # 並進速度の計算 (同時制御)
-        speed = self.kp_linear * distance_error
-        speed = max(-self.max_linear_speed, min(self.max_linear_speed, speed))
-        cmd.linear.x = speed * math.cos(angle_to_target)
-        cmd.linear.y = speed * math.sin(angle_to_target)
+        ## 並進速度制御
+        vx = self.kp_linear * err_x
+        vy = self.kp_linear * err_y
 
-        # 旋回速度の計算
-        cmd.angular.z = self.kp_angular * angle_to_target
-        cmd.angular.z = max(-self.max_angular_speed, min(self.max_angular_speed, cmd.angular.z))
+        vx = max(-self.max_linear_speed, min(self.max_linear_speed, vx))
+        vy = max(-self.max_linear_speed, min(self.max_linear_speed, vy))
+        cmd.linear.x = vx
+        cmd.linear.y = vy
 
+        ## 旋回速度制御
+        cmd.angular.z = 0.0
         self.cmd_pub.publish(cmd)
 
+    # =========================================================
+    #  タイムアウト & 停止処理
+    # =========================================================
     def check_timeout(self):
         """一定時間、物体を検出できなかったらロボットを停止させる"""
         if self.get_clock().now() - self.last_detection_time > rclpy.duration.Duration(seconds=1.0):
-            # self.get_logger().info("Detection timed out. Stopping robot.") # ログが多すぎる場合はコメントアウト
             self.stop_robot()
 
     def stop_robot(self):

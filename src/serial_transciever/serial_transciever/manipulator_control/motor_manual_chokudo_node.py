@@ -86,10 +86,22 @@ class OffsetCommandNode(Node):
             elif line == "CBB": # 下がる
                 self.publish_chokudo_offset(-14000.0)
             #カメラスイングモーター
-            elif line == "D+": #下げる
+            elif line == "D+": #上げる
+                self.publish_cameraswing_offset(-10.0)
+            elif line == "D++": #上げる
+                self.publish_cameraswing_offset(-20.0)
+            elif line == "D+++": #上げる
+                self.publish_cameraswing_offset(-30.0)
+            elif line == "D++++": #上げる
+                self.publish_cameraswing_offset(-40.0)
+            elif line == "D-": #下げる
+                self.publish_cameraswing_offset(+10.0)
+            elif line == "D--": #下げる
+                self.publish_cameraswing_offset(+20.0)
+            elif line == "D---": #下げる
+                self.publish_cameraswing_offset(+30.0)
+            elif line == "D----": #下げる
                 self.publish_cameraswing_offset(+40.0)
-            elif line == "D-": #上げる
-                self.publish_cameraswing_offset(-45.0)
                                     
             elif len(line) >= 2 and line[0] in ['A', 'B'] and line[1:].isdigit():
                 motor_index = int(line[1:]) - 1
