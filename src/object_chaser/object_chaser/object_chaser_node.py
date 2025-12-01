@@ -36,9 +36,9 @@ class ObjectChaserNode(Node):
 
         # === 制御パラメータ (ロボット移動) ===
         self.target_frame = 'base_link'
-        self.target_distance = 0.5      # ロボットと物体の目標距離 [m]
+        self.target_distance = 0.85      # ロボットと物体の目標距離 [m]
         self.stop_threshold = 0.05      # 停止判定の許容誤差 [m]
-        self.kp_linear = 0.6            # 距離に対する比例ゲイン
+        self.kp_linear = 0.3            # 距離に対する比例ゲイン
         self.kp_angular = 0.1           # （今回は使ってないが一応残す）
         self.max_linear_speed = 0.1     # 最大並進速度 [m/s]
         self.max_angular_speed = 0.05   # 最大旋回速度 [rad/s]
