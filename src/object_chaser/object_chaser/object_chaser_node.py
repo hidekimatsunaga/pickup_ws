@@ -125,21 +125,36 @@ class ObjectChaserNode(Node):
         """物体を検出したときに呼ばれるメインのコールバック"""
         self.last_detection_time = self.get_clock().now()
 
-        # --- ロボット制御用：base_link に変換 ---
-        try:
-            transform = self.tf_buffer.lookup_transform(
-                self.target_frame, msg.header.frame_id, rclpy.time.Time())
-            point_in_base_link = do_transform_point(msg, transform)
-        except (LookupException, ConnectivityException, ExtrapolationException) as e:
-            self.get_logger().error(f'Could not transform point: {e}')
-            return
+        # # --- ロボット制御用：base_link に変換 ---
+        # try:
+        #     transform = self.tf_buffer.lookup_transform(
+        #         self.target_frame, msg.header.frame_id, rclpy.time.Time())
+        #     point_in_base_link = do_transform_point(msg, transform)
+        # except (LookupException, ConnectivityException, ExtrapolationException) as e:
+        #     self.get_logger().error(f'Could not transform point: {e}')
+        #     return
 
-        target_x = point_in_base_link.point.x
-        target_y = point_in_base_link.point.y
+        # target_x = point_in_base_link.point.x
+        # target_y = point_in_base_link.point.y
+        # distance = math.sqrt(target_x**2 + target_y**2)
+
+        # # --- 処理1: ロボット本体の移動制御 ---
+        # self.execute_robot_control(target_x, target_y, distance)
+        # --- camera_color_optical_frame の座標をそのまま使う ---
+        x_cam = msg.point.x  # 右(+)
+        y_cam = msg.point.y  # 下(+)
+        z_cam = msg.point.z  # 前(+)
+
+        # ロボットの前進方向 ≒ カメラの +z
+        # ロボットの左右 ≒ カメラの +x （向きが逆なら符号変える）
+        target_x = z_cam      # 前後
+        target_y = -x_cam      # 左右
+
         distance = math.sqrt(target_x**2 + target_y**2)
 
         # --- 処理1: ロボット本体の移動制御 ---
         self.execute_robot_control(target_x, target_y, distance)
+
 
         # --- 処理2: カメラ制御（LUT優先、無ければ距離ベースでフォールバック） ---
         y_cam = msg.point.y  # camera_color_optical_frame の y
@@ -157,7 +172,7 @@ class ObjectChaserNode(Node):
         """
         # LUTがあれば LUT を使う
         if self.lut_angle:
-            target_deg = self.lookup_camera_angle_from_yz(y_cam, z_cam, k=3)
+            target_deg = self.lookup_camera_angle_from_yz(y_cam, z_cam, k=2)
         else:
             # LUTが無い場合は、以前の距離ベースの制御をそのまま使う
             target_deg = self.control_camera_swing_by_distance(distance)
@@ -192,7 +207,7 @@ class ObjectChaserNode(Node):
 
         return target_deg
 
-    def lookup_camera_angle_from_yz(self, y: float, z: float, k: int = 3) -> float:
+    def lookup_camera_angle_from_yz(self, y: float, z: float, k: int = 2) -> float:
         """
         LUT に基づき (y, z) からカメラ角度[deg]を推定。
         k 個の最近傍を距離の逆数重みで平均。
@@ -245,7 +260,7 @@ class ObjectChaserNode(Node):
 
         # 目標： base_link から見たとき (x, y) = (target_distance, 0) にしたい
         err_x = target_x - self.target_distance   # 前後方向の誤差
-        err_y = target_y - 0.0                    # 横方向の誤差
+        err_y = target_y - 0.3                    # 横方向の誤差
 
         # 距離ベースの到達判定（今まで通り）
         distance_error = distance - self.target_distance
