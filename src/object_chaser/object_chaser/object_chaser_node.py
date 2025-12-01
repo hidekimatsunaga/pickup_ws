@@ -43,6 +43,24 @@ class ObjectChaserNode(Node):
         self.max_linear_speed = 0.1     # 最大並進速度 [m/s]
         self.max_angular_speed = 0.05   # 最大旋回速度 [rad/s]
 
+        # === 段階的アプローチ制御パラメータ（パラメータ化） ===
+        # フェーズ: 0=初期直進, 1=横方向移動で整列, 2=最終直進で距離詰め
+        self.approach_phase = 0
+
+        # パラメータ宣言（デフォルト値をここで設定）
+        self.declare_parameter('approach.phase1_switch_x', 1.2)
+        self.declare_parameter('approach.lateral_tolerance', 0.3)
+        self.declare_parameter('approach.phase1_forward_speed', 0.08)
+        self.declare_parameter('approach.phase2_lateral_speed', 0.06)
+        self.declare_parameter('approach.phase3_final_forward_speed', 0.08)
+
+        # パラメータ取得
+        self.phase1_switch_x = float(self.get_parameter('approach.phase1_switch_x').get_parameter_value().double_value)
+        self.lateral_tolerance = float(self.get_parameter('approach.lateral_tolerance').get_parameter_value().double_value)
+        self.phase1_forward_speed = float(self.get_parameter('approach.phase1_forward_speed').get_parameter_value().double_value)
+        self.phase2_lateral_speed = float(self.get_parameter('approach.phase2_lateral_speed').get_parameter_value().double_value)
+        self.phase3_final_forward_speed = float(self.get_parameter('approach.phase3_final_forward_speed').get_parameter_value().double_value)
+
         # === 制御パラメータ (カメラの「距離に応じた」下向き制御：LUTが無いときのバックアップ) ===
         self.far_distance = 2.0         # これより遠いときの距離 [m]
         self.near_distance = 0.5        # これより近いときの距離 [m]
@@ -259,10 +277,11 @@ class ObjectChaserNode(Node):
         self.get_logger().info(f"物体までの計算上の距離: {distance:.2f} m")
 
         # 目標： base_link から見たとき (x, y) = (target_distance, 0) にしたい
+        desired_lateral_offset = 0.0
         err_x = target_x - self.target_distance   # 前後方向の誤差
-        err_y = target_y - 0.3                    # 横方向の誤差
+        err_y = target_y - desired_lateral_offset # 横方向の誤差
 
-        # 距離ベースの到達判定（今まで通り）
+        # 距離ベースの到達判定
         distance_error = distance - self.target_distance
 
         cmd = Twist()
@@ -277,22 +296,59 @@ class ObjectChaserNode(Node):
                 completion_msg.data = True
                 self.completion_pub.publish(completion_msg)
             self.completion_notified = True
+            # 到達時はフェーズをリセットしておく
+            self.approach_phase = 0
             return
 
+        # まだ到達していない
         self.completion_notified = False
 
-        # 並進速度制御
-        vx = self.kp_linear * err_x
-        vy = self.kp_linear * err_y
+        # --- フェーズ制御 ---
+        # フェーズ0: 初期直進 (横移動は行わない)
+        if self.approach_phase == 0:
+            # 前方距離が閾値以下になったら横整列フェーズへ移る
+            if target_x <= self.phase1_switch_x:
+                self.approach_phase = 1
+                self.get_logger().info("Approach phase -> 1 (lateral alignment)")
+            else:
+                # 前進のみ
+                vx = min(self.phase1_forward_speed, self.max_linear_speed)
+                cmd.linear.x = vx
+                cmd.linear.y = 0.0
+                cmd.angular.z = 0.0
+                self.cmd_pub.publish(cmd)
+                return
 
-        vx = max(-self.max_linear_speed, min(self.max_linear_speed, vx))
-        vy = max(-self.max_linear_speed, min(self.max_linear_speed, vy))
-        cmd.linear.x = vx
-        cmd.linear.y = vy
+        # フェーズ1: 横方向移動で整列
+        if self.approach_phase == 1:
+            # 横方向が十分に整列したら最終直進フェーズへ
+            if abs(err_y) <= self.lateral_tolerance:
+                self.approach_phase = 2
+                self.get_logger().info("Approach phase -> 2 (final forward)")
+            else:
+                # 横方向移動（左右）: y が正なら右に、負なら左に (カメラ座標系に合わせる)
+                vy = -self.phase2_lateral_speed if err_y > 0 else self.phase2_lateral_speed
+                # 軽く前進成分を入れても良いが、ここでは横移動中心にする
+                cmd.linear.x = 0.0
+                cmd.linear.y = vy
+                cmd.angular.z = 0.0
+                self.cmd_pub.publish(cmd)
+                return
 
-        # 旋回は一旦無視
-        cmd.angular.z = 0.0
-        self.cmd_pub.publish(cmd)
+        # フェーズ2: 最終直進で目標距離へ詰める（横方向は微修正）
+        if self.approach_phase == 2:
+            # 前進は比例制御、横は小さな補正だけ入れる
+            vx = self.kp_linear * err_x
+            vy = self.kp_linear * err_y * 0.5
+
+            vx = max(-self.phase3_final_forward_speed, min(self.phase3_final_forward_speed, vx))
+            vy = max(-self.max_linear_speed, min(self.max_linear_speed, vy))
+
+            cmd.linear.x = vx
+            cmd.linear.y = vy
+            cmd.angular.z = 0.0
+            self.cmd_pub.publish(cmd)
+            return
 
     # =========================================================
     #  タイムアウト & 停止処理
