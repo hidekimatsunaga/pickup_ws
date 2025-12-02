@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32, Float32MultiArray, Int8MultiArray
 import threading
+import time
 
 
 class AllmotorManualSwitchNode(Node):
@@ -36,6 +37,10 @@ class AllmotorManualSwitchNode(Node):
         )
         # --- 追加: スイッチ状態保持 ---
         self.prev_switch_state = [0] * 9
+        # --- 追加: キーボードによる手動指令を記録するタイムスタンプ（秒） ---
+        self.manual_command_time = [0.0] * 9
+        # 手動指令があったとみなしてたるみ除去から除外する時間（秒）
+        self.manual_exclude_timeout = 2.0
 
         # --- 追加: /switch 購読 ---
         self.switch_sub = self.create_subscription(
@@ -116,6 +121,21 @@ class AllmotorManualSwitchNode(Node):
     def send_offset_to_motor(self, motor_index, offset_deg):
         new_angles = self.current_angles.copy()
         new_angles[motor_index] = (new_angles[motor_index] + offset_deg)
+        # キーボードからの指令としてタイムスタンプを記録
+        try:
+            self.manual_command_time[motor_index] = time.time()
+        except Exception:
+            pass
+        # internal state にも指令値を反映しておく（後続の publish が古い値で上書きしないように）
+        try:
+            self.current_angles[motor_index] = new_angles[motor_index]
+        except Exception:
+            pass
+        # 追加ログ: publish 直前の配列とタイムスタンプ確認
+        try:
+            self.get_logger().info(f'Publishing (keyboard offset) data={[f"{v:.2f}" for v in new_angles]} manual_time={self.manual_command_time[motor_index]:.3f}')
+        except Exception:
+            pass
         msg = Float32MultiArray()
         msg.data = new_angles
         self.publisher.publish(msg)
@@ -125,6 +145,21 @@ class AllmotorManualSwitchNode(Node):
     def send_absolute_to_motor(self, motor_index, target_deg):
         new_angles = self.current_angles.copy()
         new_angles[motor_index] = target_deg
+        # キーボードからの指令としてタイムスタンプを記録
+        try:
+            self.manual_command_time[motor_index] = time.time()
+        except Exception:
+            pass
+        # internal state にも指令値を反映しておく（後続の publish が古い値で上書きしないように）
+        try:
+            self.current_angles[motor_index] = new_angles[motor_index]
+        except Exception:
+            pass
+        # 追加ログ: publish 直前の配列とタイムスタンプ確認
+        try:
+            self.get_logger().info(f'Publishing (keyboard absolute) data={[f"{v:.2f}" for v in new_angles]} manual_time={self.manual_command_time[motor_index]:.3f}')
+        except Exception:
+            pass
         msg = Float32MultiArray()
         msg.data = new_angles
         self.publisher.publish(msg)
@@ -152,13 +187,24 @@ class AllmotorManualSwitchNode(Node):
         # いまの角度を一度コピー
         new_angles = self.current_angles.copy()
         updated = False
+        now = time.time()
 
         for idx, val in enumerate(msg.data):
             if val == 0:
-                new_angles[idx] += 3.0     # +1° 加算
+                # 直近でキーボードから指令が来ているモータはたるみ除去から除外
+                if now - self.manual_command_time[idx] <= self.manual_exclude_timeout:
+                    self.get_logger().info(f'Switch[{idx+1}] = 0 but skipped (recent manual command)')
+                    continue
+                new_angles[idx] += 3.0     # +3° 加算
                 updated = True
-                self.get_logger().info(f'Switch[{idx+1}] = 0 → motor +2 deg')
-
+                self.get_logger().info(f'Switch[{idx+1}] = 0 → motor +3 deg')
+        # 追加ログ: switch で publish する前に送信データと各モータの manual_command_time を出す
+        if updated:
+            try:
+                times_str = [f'{t:.3f}' for t in self.manual_command_time]
+                self.get_logger().info(f'Publishing (switch) data={[f"{v:.2f}" for v in new_angles]} manual_times={times_str}')
+            except Exception:
+                pass
         # ひとつでも更新があれば publish
         if updated:
             msg_pub = Float32MultiArray()

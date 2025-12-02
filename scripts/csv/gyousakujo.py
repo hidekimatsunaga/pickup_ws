@@ -1,9 +1,9 @@
 import pandas as pd
 
 # 読み込むCSVファイルのパスを指定
-input_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_1108_193312.csv'
+input_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_1202_related.csv'
 # 保存するCSVファイルのパスを指定
-output_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_193312_cleaned.csv'
+output_filepath = '/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1202_related_cleaned.csv'
 
 # CSVファイルを読み込む
 try:
