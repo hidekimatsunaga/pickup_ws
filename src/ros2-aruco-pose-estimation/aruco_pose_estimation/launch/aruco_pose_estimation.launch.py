@@ -132,13 +132,13 @@ def generate_launch_description():
             "depth_module.depth_profile": "640x480x30",   # 640x480x30 など
 
             # ▼ カラー露出（まずはオートOFF）
-            "rgb_camera.enable_auto_exposure": "false",
+            "rgb_camera.enable_auto_exposure": "true",
             # （対応していれば）固定値も
-            "rgb_camera.exposure": "120",   # 例: 120
+            "rgb_camera.exposure": "50",   # 例: 120
             "rgb_camera.gain": "64",
 
             # ▼ 深度側の露出（深度を使うときだけ）
-            "depth_module.enable_auto_exposure": "false",
+            "depth_module.enable_auto_exposure": "true",
             "depth_module.exposure": "8500"
         }.items(),
         condition=IfCondition(LaunchConfiguration('use_depth_input'))
