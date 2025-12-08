@@ -17,14 +17,28 @@ public:
     arm_err_thresh_(this->declare_parameter("arm_error_threshold", 0.05)),
     meas_received_(false)
   {
+    // 追加パラメータの宣言と取得
+    this->declare_parameter<std::vector<int64_t>>("allowed_marker_ids", {0,1,2});
+    this->get_parameter("allowed_marker_ids", allowed_marker_ids_);
+
+    this->declare_parameter<double>("initial_goal_delay_sec", 1.0);
+    this->get_parameter("initial_goal_delay_sec", initial_goal_delay_sec_);
+
+    this->declare_parameter<double>("service_wait_timeout_sec", 1.0);
+    this->get_parameter("service_wait_timeout_sec", service_wait_timeout_sec_);
+
+    this->declare_parameter<std::string>("get_target_service", std::string("/get_target"));
+    this->get_parameter("get_target_service", get_target_service_);
+
     // ★★★ ここから変更 ★★★
     // サービス・クライアントの作成
-    client_goal_ = this->create_client<target_selector::srv::GetTarget>("/get_target");
+    client_goal_ = this->create_client<target_selector::srv::GetTarget>(get_target_service_);
 
     // auto_startがtrueの場合、1秒後に一度だけサービスを呼び出すタイマーを設定
     if (auto_start_) {
+      // initial_goal_delay_sec_ をミリ秒に変換してタイマー作成
       initial_goal_timer_ = this->create_wall_timer(
-        std::chrono::seconds(1),
+        std::chrono::milliseconds(static_cast<int>(initial_goal_delay_sec_ * 1000.0)),
         std::bind(&FeedbackGoalPositionNode::request_initial_goal, this));
     }
     // ★★★ ここまで変更 ★★★
@@ -34,11 +48,11 @@ public:
       "/aruco/markers", 10,
       [this](const aruco_interfaces::msg::ArucoMarkers::SharedPtr msg) {
         // ... (この中のロジックは変更なし)
-        constexpr std::array<int64_t,3> ALLOWED = {0, 1, 2};
+        // 許可されているマーカーIDはパラメータで指定可能
         for(size_t i = 0; i < msg->marker_ids.size(); ++i){
           int64_t id = msg->marker_ids[i];
-          if(std::find(ALLOWED.begin(), ALLOWED.end(), id) == ALLOWED.end())
-          continue;
+          if(std::find(allowed_marker_ids_.begin(), allowed_marker_ids_.end(), id) == allowed_marker_ids_.end())
+            continue;
           if (i >= msg->poses.size()) return;
           meas_.header = msg->header;
           meas_.point.x = msg->poses[i].position.x;
@@ -62,7 +76,7 @@ private:
     initial_goal_timer_->cancel();
 
     // サービスサーバーが起動するまで待機
-    while (!client_goal_->wait_for_service(std::chrono::seconds(1))) {
+    while (!client_goal_->wait_for_service(std::chrono::milliseconds(static_cast<int>(service_wait_timeout_sec_ * 1000.0)))) {
       if (!rclcpp::ok()) {
         RCLCPP_ERROR(this->get_logger(), "クライアントが割り込みを受けました。");
         return;
@@ -95,6 +109,12 @@ private:
   double arm_err_thresh_;
   bool meas_received_;
   bool start_sent_{false};
+
+  // new parameters
+  std::vector<int64_t> allowed_marker_ids_;
+  double initial_goal_delay_sec_ = 1.0;
+  double service_wait_timeout_sec_ = 1.0;
+  std::string get_target_service_ = "/get_target";
 
   // ★ サブスクライバを削除し、クライアントとタイマーを追加
   rclcpp::Client<target_selector::srv::GetTarget>::SharedPtr client_goal_;

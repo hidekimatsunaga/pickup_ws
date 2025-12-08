@@ -1,0 +1,10 @@
+feedback_motor_publisher:
+  ros__parameters:
+    csv_filepath: "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1202_related_cleaned_deduped.csv"
+    air_threshold: -110.0
+    k_neighbors: 3
+    epsilon: 1e-9
+    pickup_motor10_angle: 54.0
+    neighbor_marker_scale: 0.02
+    marker_lifetime_sec: 1.0
+    tolerance: 20.0

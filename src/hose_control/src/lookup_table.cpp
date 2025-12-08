@@ -9,6 +9,7 @@
 #include <string>
 #include <limits>
 #include <cmath>
+#include <iomanip>
 #include "hose_control/motor_initial_position.hpp"
 #include "hose_control/motor_pickup_position.hpp"
 #include <algorithm> // std::sort のために追加
@@ -29,11 +30,33 @@ public:
     is_in_sequence_mode_(false), //シーケンス実行中かどうかのフラグ
     sequence_step_(0) //シーケンスの現在のステップ
   {
+    // Node parameters (can be overridden via YAML or command-line)
+    this->declare_parameter<std::string>("csv_filepath", "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1202_related_cleaned_deduped.csv");
+    this->get_parameter("csv_filepath", csv_filepath_);
+
     this->declare_parameter<double>("air_threshold", -110.0);
     this->get_parameter("air_threshold", air_threshold_);
 
-    load_csv("/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_193312_cleaned.csv");
-    
+    this->declare_parameter<int>("k_neighbors", 4);
+    this->get_parameter("k_neighbors", k_neighbors_);
+
+    this->declare_parameter<double>("epsilon", 1e-9);
+    this->get_parameter("epsilon", epsilon_);
+
+    this->declare_parameter<double>("pickup_motor10_angle", 54.0);
+    this->get_parameter("pickup_motor10_angle", pickup_motor10_angle_);
+
+    this->declare_parameter<double>("neighbor_marker_scale", 0.02);
+    this->get_parameter("neighbor_marker_scale", neighbor_marker_scale_);
+
+    this->declare_parameter<double>("marker_lifetime_sec", 1.0);
+    this->get_parameter("marker_lifetime_sec", marker_lifetime_sec_);
+
+    this->declare_parameter<double>("tolerance", 20.0);
+    this->get_parameter("tolerance", tolerance_);
+
+    // load CSV from parameter
+    load_csv(csv_filepath_);
     // ★ 修正点2: 型の違う2次元ベクトルの正しいコピー
     sequence_data_.clear();
     const auto& seq_from_header = motor_sequences::pickup_sequence;
@@ -78,6 +101,15 @@ private:
   std::vector<std::vector<double>> sequence_data_; // シーケンスデータを保持する変数
   std::vector<double> current_motor_angles_; // 最新のモーター角度を保持する変数
   double air_threshold_;
+
+  // Parameters (populated from node parameters)
+  std::string csv_filepath_;
+  int k_neighbors_ = 3;
+  double epsilon_ = 1e-9;
+  double pickup_motor10_angle_ = 54.0;
+  double neighbor_marker_scale_ = 0.02;
+  double marker_lifetime_sec_ = 1.0;
+  double tolerance_ = 20.0;
 
 
   void load_csv(const std::string &filepath) {
@@ -143,8 +175,8 @@ private:
       // シーケンス開始時にmotor10の値を一度だけパブリッシュ
       std_msgs::msg::Float32 motor10_msg;
       // ゴミを吸着・保持するための角度を設定します。
-      // この値は、実際のロボットの動作に合わせて調整してください。
-      motor10_msg.data = 54.0; // 例: 吸着に適した角度として54.0を設定
+      // この値はノードパラメータ `pickup_motor10_angle` から読み込みます。
+      motor10_msg.data = static_cast<float>(pickup_motor10_angle_);
       pub_motor10_->publish(motor10_msg);
       RCLCPP_INFO(this->get_logger(), "Published motor10 for pickup sequence: %.2f", motor10_msg.data);
  
@@ -160,14 +192,14 @@ private:
 
     // --- ここから置き換え ---
 
-    // パラメータ: 近くのいくつの点を見るか
-    constexpr int k_neighbors = 4;
+    // パラメータから取得する値を使う
+    int k_neighbors = k_neighbors_;
     // パラメータ: ゼロ除算を避けるための微小値
-    constexpr double epsilon = 1e-9;
+    double epsilon = epsilon_;
 
-    if (dataset_.size() < k_neighbors) {
-    RCLCPP_WARN(this->get_logger(), "Not enough data in CSV to perform interpolation.");
-    return;
+    if (dataset_.size() < static_cast<size_t>(k_neighbors)) {
+      RCLCPP_WARN(this->get_logger(), "Not enough data in CSV to perform interpolation.");
+      return;
     }
 
     // 1. 全てのデータ点と目標地点との距離を計算
@@ -247,10 +279,10 @@ private:
         marker.pose.position.z = dp.z;
         marker.pose.orientation.w = 1.0;
 
-        // マーカーのサイズ (直径2cm)
-        marker.scale.x = 0.02;
-        marker.scale.y = 0.02;
-        marker.scale.z = 0.02;
+        // マーカーのサイズ (パラメータ化)
+        marker.scale.x = static_cast<float>(neighbor_marker_scale_);
+        marker.scale.y = static_cast<float>(neighbor_marker_scale_);
+        marker.scale.z = static_cast<float>(neighbor_marker_scale_);
 
         // マーカーの色 (赤色)
         marker.color.r = 1.0f;
@@ -258,8 +290,12 @@ private:
         marker.color.b = 0.0f;
         marker.color.a = 1.0; // 不透明
 
-        // マーカーが自動で消えるまでの時間 (1秒)
-        marker.lifetime = rclcpp::Duration(1, 0);
+        // マーカーが自動で消えるまでの時間 (パラメータ化)
+        {
+          int sec = static_cast<int>(marker_lifetime_sec_);
+          int nsec = static_cast<int>((marker_lifetime_sec_ - sec) * 1e9);
+          marker.lifetime = rclcpp::Duration(sec, nsec);
+        }
 
         marker_array.markers.push_back(marker);
     }
@@ -327,7 +363,7 @@ private:
     if (target.size() != current.size()) {
       return false;
     }
-    double tolerance = 20; // 許容誤差（例: 10度）。モーターの性能に合わせて調整。
+    double tolerance = tolerance_; // 許容誤差（度）。ノードパラメータで調整可能。
     for (size_t i = 0; i < target.size(); ++i) {
       if (std::abs(target[i] - current[i]) > tolerance) {
         return false; // 1つでも許容誤差を超えていたらfalse

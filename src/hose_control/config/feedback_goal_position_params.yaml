@@ -1,0 +1,10 @@
+feedback_goal_position_node:
+  ros__parameters:
+    gain: 1.0
+    tolerance: 0.01
+    auto_start_grasp: true
+    arm_error_threshold: 0.05
+    allowed_marker_ids: [0, 1, 2]
+    initial_goal_delay_sec: 1.0
+    service_wait_timeout_sec: 1.0
+    get_target_service: "/get_target"
