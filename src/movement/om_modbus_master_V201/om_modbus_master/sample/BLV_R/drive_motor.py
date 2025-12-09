@@ -229,7 +229,7 @@ class MyPublisher(Node):
         super().__init__("my_pub")
         self.seq = 0
         self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        self.timer = self.create_timer(0.02, self.timer_callback)
         self.ca = ClientAsync("pub")
 
         def __del__(self):
@@ -459,8 +459,8 @@ class MyPublisher(Node):
         # self.get_logger().info("right %f" % (right))
         global _is_timer_active
         global msg
-        a = 1000
-        d = 600
+        a = 300
+        d = 400
         # ID Shareモードで通信するため、global_id=10に設定
         #self.ca.set_parameters_from_another_node("om_node", "global_id", 10)
         #print("3\n")

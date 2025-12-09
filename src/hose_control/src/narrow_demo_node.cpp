@@ -39,7 +39,7 @@ public:
     pub_motor10_     = this->create_publisher<std_msgs::msg::Float32>("/chokudomotor/target_angle", 10);
     pub_robot_state_ = this->create_publisher<std_msgs::msg::String>("/robot/state", 10);
   // Publish vacuum flag to allow nodes to turn off suction when sequence completes
-  pub_vacuum_flag_ = this->create_publisher<std_msgs::msg::Bool>("/vacuum_flag", 10);
+    pub_vacuum_flag_ = this->create_publisher<std_msgs::msg::Bool>("/vacuum_flag", 10);
 
     // --- Subscriber: 気圧センサ(負圧検出) ---
     pressure_sub_ = this->create_subscription<std_msgs::msg::Float32>(
