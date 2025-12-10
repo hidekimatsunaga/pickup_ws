@@ -19,6 +19,7 @@
 
 import os
 import sys
+import threading
 
 # sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 sys.path.append("/home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample")
@@ -64,6 +65,8 @@ dt2=0
 dt3=0
 v_b=0
 lpr=1
+# スレッドセーフなロック機構
+motor_speed_lock = threading.Lock()
 # 定数
 const.QUEUE_SIZE = 1
 
@@ -101,9 +104,10 @@ class Mysubscription2(Node):
         # try: lpr = (60 * v_l  *30 - left) / (60 * v_r *30 - right)
         # except: lpr = 1
         # self.get_logger().info("lpr %f" % (lpr))
-        right = 60 * v_r *30
-        left = 60 * v_l  *30
-        back = 60 * v_b *30
+        with motor_speed_lock:
+            right = 60 * v_r *30
+            left = 60 * v_l  *30
+            back = 60 * v_b *30
         self.get_logger().info("after calucurate right left %f" % (time.time()))
 
 class MySubscription(Node):
@@ -229,7 +233,7 @@ class MyPublisher(Node):
         super().__init__("my_pub")
         self.seq = 0
         self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
-        self.timer = self.create_timer(0.02, self.timer_callback)
+        self.timer = self.create_timer(0.01, self.timer_callback)  # 20ms → 10ms に短縮
         self.ca = ClientAsync("pub")
 
         def __del__(self):
@@ -274,7 +278,7 @@ class MyPublisher(Node):
         msg.write_num = 1  # 書き込みデータ数: 1
         msg.data[0] = 0  # S-ONを立ち下げる
         self.pub.publish(msg)  # 配信
-        self.wait(0.03)
+        self.wait(0.01)
 
         msg.slave_id = 2  # スレーブID
         msg.func_code = 1  # ファンクションコード: 0:Read 1:Write 2:Read/Write
@@ -282,7 +286,7 @@ class MyPublisher(Node):
         msg.write_num = 1  # 書き込みデータ数: 1
         msg.data[0] = 0  # S-ONを立ち下げる
         self.pub.publish(msg)  # 配信
-        self.wait(0.03)
+        self.wait(0.01)
 
         msg.slave_id = 3  # スレーブID
         msg.func_code = 1  # ファンクションコード: 0:Read 1:Write 2:Read/Write
@@ -290,7 +294,7 @@ class MyPublisher(Node):
         msg.write_num = 1  # 書き込みデータ数: 1
         msg.data[0] = 0  # S-ONを立ち下げる
         self.pub.publish(msg)  # 配信
-        self.wait(0.03)
+        self.wait(0.01)
 
     def set_excitation_on(self):
         global msg
@@ -304,7 +308,7 @@ class MyPublisher(Node):
         msg.write_num = 1  # 書き込みデータ数: 1
         msg.data[0] = 1  # S-ONを立ち上げる
         self.pub.publish(msg)  # 配信
-        self.wait(0.03)
+        self.wait(0.01)
 
         msg.slave_id = 2  # スレーブID
         msg.func_code = 1  # ファンクションコード: 1:Write
@@ -312,7 +316,7 @@ class MyPublisher(Node):
         msg.write_num = 1  # 書き込みデータ数: 1
         msg.data[0] = 1  # S-ONを立ち上げる
         self.pub.publish(msg)  # 配信
-        self.wait(0.03)
+        self.wait(0.01)
 
         msg.slave_id = 3  # スレーブID
         msg.func_code = 1  # ファンクションコード: 1:Write
@@ -320,7 +324,7 @@ class MyPublisher(Node):
         msg.write_num = 1  # 書き込みデータ数: 1
         msg.data[0] = 1  # S-ONを立ち上げる
         self.pub.publish(msg)  # 配信
-        self.wait(0.03)
+        self.wait(0.01)
 
     # 各軸のID Shareモードの設定を行う
     def set_share_data(self):
@@ -337,7 +341,7 @@ class MyPublisher(Node):
         msg.data[1] = 3  # Share control number
         msg.data[2] = 1  # Share control local ID
         self.pub.publish(msg)  # 配信する
-        self.wait(0.03)
+        self.wait(0.01)
 
         msg.write_addr = 0x0990  # 書き込みの起点：Share Read data[0]
         msg.write_num = 24  # 書き込むデータ数*軸数=36
@@ -367,7 +371,7 @@ class MyPublisher(Node):
         msg.data[22] = 0  # Share Write data[10] →
         msg.data[23] = 0  # Share Write data[11] →
         self.pub.publish(msg)
-        self.wait(0.03)
+        self.wait(0.01)
 
         # 2軸目の設定
         msg.slave_id = 2  # 書き込むドライバのスレーブID
@@ -378,7 +382,7 @@ class MyPublisher(Node):
         msg.data[1] = 3  # Share control number
         msg.data[2] = 2  # Share control local ID
         self.pub.publish(msg)
-        self.wait(0.03)
+        self.wait(0.01)
 
         msg.write_addr = 0x0990  # 書き込みの起点：Share Read data[0]
         msg.write_num = 24  # 書き込むデータ数*軸数=36
@@ -408,7 +412,7 @@ class MyPublisher(Node):
         msg.data[22] = 0  # Share Write data[10] →
         msg.data[23] = 0  # Share Write data[11] →
         self.pub.publish(msg)
-        self.wait(0.03)
+        self.wait(0.01)
 
         # 3軸目の設定
         msg.slave_id = 3  # 書き込むドライバのスレーブID
@@ -419,7 +423,7 @@ class MyPublisher(Node):
         msg.data[1] = 3  # Share control number
         msg.data[2] = 3  # Share control local ID
         self.pub.publish(msg)
-        self.wait(0.03)
+        self.wait(0.01)
 
         msg.write_addr = 0x0990  # 書き込みの起点：Share Read data[0]
         msg.write_num = 24  # 書き込むデータ数*軸数=36
@@ -449,7 +453,7 @@ class MyPublisher(Node):
         msg.data[22] = 0  # Share Write data[10] →
         msg.data[23] = 0  # Share Write data[11] →
         self.pub.publish(msg)
-        self.wait(0.03)
+        self.wait(0.01)
         self.ca.set_parameters_from_another_node("om_node", "global_id", 10)
         #print("2\n")
 
@@ -459,6 +463,7 @@ class MyPublisher(Node):
         # self.get_logger().info("right %f" % (right))
         global _is_timer_active
         global msg
+        global left, right, back
         a = 300
         d = 400
         # ID Shareモードで通信するため、global_id=10に設定
@@ -471,24 +476,29 @@ class MyPublisher(Node):
         msg.func_code = 1  # 0:read 1:write 2:read/write
         msg.write_addr = 0x0000  # 書き込むアドレスの起点
         msg.write_num = 18  # 全軸合わせたデータ項目数を代入する
+        # スレッドセーフに速度値を読み込む
+        with motor_speed_lock:
+            left_val = left
+            right_val = right
+            back_val = back
         # 1軸目のデータ
         msg.data[0] = 16  # DDO運転方式 16:連続運転(速度制御)
         msg.data[1] = 0  # DDO運転位置(初期単位：1step = 0.01deg)連続運転(速度制御)なので無関係
-        msg.data[2] = back  # DDO運転速度(初期単位：r/min)
+        msg.data[2] = back_val  # DDO運転速度(初期単位：r/min)
         msg.data[3] = a  # DDO加速レート(初期単位：ms)
         msg.data[4] = d  # DDO減速レート(初期単位：ms)
         msg.data[5] = 1  # DDO運転トリガ設定
         # 2軸目のデータ
         msg.data[6] = 16  # DDO運転方式 16:連続運転(速度制御)
         msg.data[7] = 0  # DDO運転位置(初期単位：1step = 0.01deg)連続運転(速度制御)なので無関係
-        msg.data[8] = left # DDO運転速度(初期単位：r/min)
+        msg.data[8] = left_val # DDO運転速度(初期単位：r/min)
         msg.data[9] = a  # DDO加速レート(初期単位：ms)
         msg.data[10] = d  # DDO減速レート(初期単位：ms)
         msg.data[11] = 1  # DDO運転トリガ設定
         #3軸目のデータ
         msg.data[12] = 16  # DDO運転方式 16:連続運転(速度制御)
         msg.data[13] = 0  # DDO運転位置(初期単位：1step = 0.01deg)連続運転(速度制御)なので無関係
-        msg.data[14] = right  # DDO運転速度(初期単位：r/min)
+        msg.data[14] = right_val  # DDO運転速度(初期単位：r/min)
         msg.data[15] = a  # DDO加速レート(初期単位：ms)
         msg.data[16] = d  # DDO減速レート(初期単位：ms)
         msg.data[17] = 1  # DDO運転トリガ設定

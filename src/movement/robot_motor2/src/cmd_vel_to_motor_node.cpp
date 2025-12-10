@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     rclcpp::sleep_for(std::chrono::milliseconds(200));
 
     // ループのレートを60Hzに設定
-    rclcpp::Rate loop(60);
+    rclcpp::Rate loop(100);
 
     while (rclcpp::ok())
     {

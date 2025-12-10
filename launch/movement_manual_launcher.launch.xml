@@ -10,7 +10,7 @@
         <arg name="com" value="/dev/serial/by-id/usb-FTDI_USB-RS485_Cable_FT7E9M3C-if00-port0"/>
         <arg name="topicID" value="0"/>
         <arg name="baudrate" value="230400"/>
-        <arg name="updateRate" value="100"/>
+        <arg name="updateRate" value="1000"/>
         <arg name="secondGen" value="1,2,3"/>
         <arg name="globalID" value="10"/>
         <arg name="axisNum" value="3"/>
