@@ -65,7 +65,7 @@ class OffsetCommandNode(Node):
 
             if line == "A":
                 # 'a' が入力されたら、すべてのモーターを指定の角度に設定
-                target_angles = [257.0, 265.0, 202.0, 77.0, 20.0, 22.0, 146.0, 103.0, 36.0]
+                target_angles = [280.37, 272.99, 232.03, 169.01, 56.60, 68.29, 318.43, 331.00, 106.08]
                 msg = Float32MultiArray()
                 msg.data = target_angles
                 self.publisher.publish(msg)
