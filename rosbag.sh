@@ -27,6 +27,22 @@ ros2 bag record \
     /sensor/pressure \
     /start_grasp \
     /vacuum_flag \
+    /cmd_vel \
+    /drive_odom \
+    /drive_vel \
+    /joy \
+    /joy/set_feedback \
+    /odom \
+    /om_query0 \
+    /om_response0 \
+    /om_state0 \
+    /parameter_events \
+    /rosout \
+    /set_position \
+    /steer_angle \
+    /steer_odom \
+    /tf \
+    /wheel_odom \
     --compression-mode file \
     --compression-format zstd \
     -o ~/pickup_ws/bags/record_$(date +%Y%m%d_%H%M%S)
