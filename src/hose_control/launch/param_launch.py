@@ -28,5 +28,5 @@ def generate_launch_description():
 
     return LaunchDescription([
         lookup_node,
-        feedback_node
+        # feedback_node
     ])

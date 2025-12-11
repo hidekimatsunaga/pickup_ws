@@ -85,14 +85,14 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 # --- 正解の値をここに設定してください ---
-correct_x = -0.14
-correct_y = -0.02
-correct_z = 0.62
+correct_x = 0.05
+correct_y = -0.1
+correct_z = 0.76
 # ------------------------------------
 
 # CSV読み込み（ヘッダーなし、1行目スキップ）
 # ファイルパスはご自身の環境に合わせて修正してください。
-df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1208_related_cleaned_deduped.csv', header=None, skiprows=1)
+df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1211_related.csv', header=None, skiprows=1)
 # df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv/aruco_motor_log_1026_031137.csv', header=None, skiprows=1)
 # df = pd.read_csv('/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1108_193312_cleaned.csv', header=None, skiprows=1)
 # df = pd.read_csv('/home/matsunaga-h/pickup_ws/rosbag/lookup_table/aruco_motor_log_1020_125332_cleaned.csv', header=None, skiprows=1)

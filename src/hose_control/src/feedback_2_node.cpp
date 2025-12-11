@@ -1,12 +1,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
-#include <geometry_msgs/msg/pose_array.hpp> 
-#include <Eigen/Dense>                // ★ 追加
+#include <Eigen/Dense>
 #include <cmath>
 #include <std_msgs/msg/bool.hpp>
-#include <aruco_interfaces/msg/aruco_markers.hpp> // ★ 追加
+#include <aruco_interfaces/msg/aruco_markers.hpp>
 #include <array>
-#include "vision_msgs/msg/detection3_d_array.hpp" // ★ 追加
 
 
 class Feedback2Node : public rclcpp::Node {
@@ -17,42 +15,16 @@ public:
     tol_(this->declare_parameter("tolerance", 0.01)),
     auto_start_(this->declare_parameter("auto_start_grasp", true)),
     arm_err_thresh_(this->declare_parameter("arm_error_threshold", 0.05)),
-    meas_received_(false)             // ★ 初期化
+    meas_received_(false)
   {
     // 目標位置
-    sub_goal_ = this->create_subscription<vision_msgs::msg::Detection3DArray>(
-      "/detected_objects_3d", 10,
-      [this](const vision_msgs::msg::Detection3DArray::SharedPtr msg)  // ★ 明示型
+    sub_goal_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
+      "/detected_depth_points", 10,
+      [this](const geometry_msgs::msg::PointStamped::SharedPtr msg)
       {
-      // 検出された物体が一つもなければ何もしない
-      if (msg->detections.empty()) {
-        return;
-      }
-
-
-      // 検出結果の配列の先頭にある物体の情報を取得
-      const auto& first_detection = msg->detections[0];
-
-
-      // 物体の認識結果がなければ何もしない
-      if (first_detection.results.empty()){
-        return;
-      }
-
-
-      // 認識結果の先頭にあるものの3D位置を取得
-      const auto& position = first_detection.results[0].pose.pose.position;
-
-
-      // goal_変数（PointStamped型）に値をセット
-      goal_.header = msg->header; // ヘッダーは元のメッセージから流用
-      goal_.point.x = position.x;
-      goal_.point.y = position.y;
-      goal_.point.z = position.z;
-      
-      // 元の処理を呼び出す
-      publish_cmd();
-      start_sent_ = false;
+        goal_ = *msg;
+        publish_cmd();
+        start_sent_ = false;
       });
 
 
@@ -96,28 +68,26 @@ private:
   /* ---------- メンバ ---------- */
   geometry_msgs::msg::PointStamped goal_, meas_, cmd_;
   double K_, tol_;
-  bool auto_start_;                // ★ 自動把持開始
-  double arm_err_thresh_;          // ★ 把持開始の誤差しき
-  bool meas_received_;  // ★ 未受信ガード
-  bool start_sent_{false};         // ★ このゴールに対して/start_graspをもう出したか
+  bool auto_start_;
+  double arm_err_thresh_;
+  bool meas_received_;
+  bool start_sent_{false};
 
 
-  /* ★ ここを追加：サブスクライバのメンバ宣言 */
-  rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr sub_goal_;
+  /* サブスクライバとパブリッシャーのメンバ宣言 */
+  rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_goal_;
   rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr sub_meas_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pub_cmd_;
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_start_; // ★ 把持開始の合図
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_start_;
   
 
 
-  /* ---------- 関数 ---------- */
   void publish_cmd() {
-    cmd_ = goal_;          // 初回は目標そのまま
+    cmd_ = goal_;
     pub_cmd_->publish(cmd_);
   }
 
-
-  // ★ 一度だけ /start_grasp を出す
+  // 一度だけ /start_grasp を出す
   void publish_start_grasp_once()
   {
     if (start_sent_ || !auto_start_) return;
@@ -129,25 +99,22 @@ private:
 
 
   void feedback() {
-    if (!meas_received_) return;               // 実測がまだ来ていない
+    if (!meas_received_) return;
     using Vec3 = Eigen::Vector3d;
     Vec3 g(goal_.point.x, goal_.point.y, goal_.point.z);
     Vec3 m(meas_.point.x, meas_.point.y, meas_.point.z);
     Vec3 e = g - m;
 
-
-    // ── 誤差を出力 ─────────────────────────────
     RCLCPP_INFO(this->get_logger(),
               "誤差: [x=%.4f  y=%.4f  z=%.4f]  |e|=%.4f",
               e.x(), e.y(), e.z(), e.norm());
-    // ──────────────────────────────────────────
-    //ゴールに向かう必要がある　（十分離れている）ときに/start_graspを一度だけ出す
+
+    // ゴールに向かう必要がある（十分離れている）ときに/start_graspを一度だけ出す
     if (e.norm() > arm_err_thresh_) {
-      publish_start_grasp_once();  // ★ 一度だけ把持開始の合図
+      publish_start_grasp_once();
     }
 
-
-    if (e.norm() < tol_) return;               // 近ければ終了
+    if (e.norm() < tol_) return;
 
 
     Vec3 next = g + K_ * e;                    // 目標補正
