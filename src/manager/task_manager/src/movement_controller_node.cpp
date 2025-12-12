@@ -15,8 +15,19 @@ public:
   : rclcpp::Node("movement_controller_node"),
     current_state_(""),
     chaser_timeout_(0.3),
+    publish_period_sec_(0.1),
+    search_speed_(0.1),
     chaser_active_(false)
   {
+    // パラメータ宣言と取得
+    this->declare_parameter<double>("publish_period_sec", 0.1);
+    this->declare_parameter<double>("chaser_timeout_sec", 0.3);
+    this->declare_parameter<double>("search_speed", 0.1);
+
+    publish_period_sec_ = this->get_parameter("publish_period_sec").as_double();
+    chaser_timeout_ = this->get_parameter("chaser_timeout_sec").as_double();
+    search_speed_ = this->get_parameter("search_speed").as_double();
+
     cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 
     chaser_cmd_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
@@ -27,7 +38,9 @@ public:
       "/robot/state", 10,
       std::bind(&MovementControllerNode::state_callback, this, std::placeholders::_1));
 
-    publish_timer_ = this->create_wall_timer(100ms, std::bind(&MovementControllerNode::publish_cmd_vel, this));
+    publish_timer_ = this->create_wall_timer(
+      std::chrono::duration<double>(publish_period_sec_),
+      std::bind(&MovementControllerNode::publish_cmd_vel, this));
 
     last_chaser_time_ = this->get_clock()->now();
     approaching_twist_ = geometry_msgs::msg::Twist();
@@ -51,6 +64,8 @@ private:
   geometry_msgs::msg::Twist approaching_twist_;
   rclcpp::Time last_chaser_time_;
   double chaser_timeout_;
+  double publish_period_sec_;
+  double search_speed_;
   bool chaser_active_;
 
   void chaser_cmd_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
@@ -79,7 +94,7 @@ private:
 
     if (current_state_ == "searching") {
       // 探索中：ゆっくり前進
-      twist.linear.x = 0.1;
+      twist.linear.x = search_speed_;
       twist.angular.z = 0.0;
 
     } else if (current_state_ == "approaching") {

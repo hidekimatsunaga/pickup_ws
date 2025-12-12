@@ -1,0 +1,13 @@
+task_manager:
+  ros__parameters:
+    initial_angle_deg: 20.0
+    initial_angle_delay_sec: 0.5
+    search_start_delay_sec: 2.0
+    state_publish_period_sec: 1.0
+    stop_duration_sec: 1.0
+
+movement_controller_node:
+  ros__parameters:
+    publish_period_sec: 0.1
+    chaser_timeout_sec: 0.3
+    search_speed: 0.1

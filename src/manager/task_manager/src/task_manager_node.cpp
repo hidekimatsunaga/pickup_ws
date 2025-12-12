@@ -17,6 +17,19 @@ public:
   {
     RCLCPP_INFO(this->get_logger(), "✅ Task Manager ノード (C++) を起動しました");
 
+    // パラメータ宣言
+    this->declare_parameter<double>("initial_angle_deg", 20.0);
+    this->declare_parameter<double>("initial_angle_delay_sec", 0.5);
+    this->declare_parameter<double>("search_start_delay_sec", 2.0);
+    this->declare_parameter<double>("state_publish_period_sec", 1.0);
+    this->declare_parameter<double>("stop_duration_sec", 1.0);
+
+    initial_angle_deg_ = this->get_parameter("initial_angle_deg").as_double();
+    initial_angle_delay_sec_ = this->get_parameter("initial_angle_delay_sec").as_double();
+    search_start_delay_sec_ = this->get_parameter("search_start_delay_sec").as_double();
+    state_publish_period_sec_ = this->get_parameter("state_publish_period_sec").as_double();
+    stop_duration_sec_ = this->get_parameter("stop_duration_sec").as_double();
+
     // 状態定義
     STATE_INITIALIZING = "initializing";
     STATE_SEARCHING = "searching";
@@ -41,7 +54,9 @@ public:
       std::bind(&TaskManagerNode::chaser_completion_callback, this, std::placeholders::_1));
 
     // 状態を定期的に配信するタイマー
-    state_publish_timer_ = this->create_wall_timer(1s, std::bind(&TaskManagerNode::publish_state, this));
+    state_publish_timer_ = this->create_wall_timer(
+      std::chrono::duration<double>(state_publish_period_sec_),
+      std::bind(&TaskManagerNode::publish_state, this));
 
     // 初期状態
     set_state(STATE_INITIALIZING);
@@ -50,7 +65,9 @@ public:
     initialize_camera();
 
     // 2秒後に探索開始
-    transition_timer_ = this->create_wall_timer(2s, std::bind(&TaskManagerNode::start_searching, this));
+    transition_timer_ = this->create_wall_timer(
+      std::chrono::duration<double>(search_start_delay_sec_),
+      std::bind(&TaskManagerNode::start_searching, this));
   }
 
 private:
@@ -63,6 +80,13 @@ private:
 
   std::string state_;
   std::deque<std::string> target_queue_;
+
+  // パラメータ値
+  double initial_angle_deg_{};
+  double initial_angle_delay_sec_{};
+  double search_start_delay_sec_{};
+  double state_publish_period_sec_{};
+  double stop_duration_sec_{};
 
   // Publishers / Subscribers
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr state_pub_;
@@ -79,13 +103,15 @@ private:
   void initialize_camera()
   {
     RCLCPP_INFO(this->get_logger(), "カメラの初期化を行います...");
-    initial_angle_timer_ = this->create_wall_timer(500ms, std::bind(&TaskManagerNode::_publish_initial_camera_angle, this));
+    initial_angle_timer_ = this->create_wall_timer(
+      std::chrono::duration<double>(initial_angle_delay_sec_),
+      std::bind(&TaskManagerNode::_publish_initial_camera_angle, this));
   }
 
   void _publish_initial_camera_angle()
   {
     std_msgs::msg::Float32 msg;
-    msg.data = 20.0f; // 初期角度
+    msg.data = static_cast<float>(initial_angle_deg_);
     camera_angle_pub_->publish(msg);
     RCLCPP_INFO(this->get_logger(), "カメラの角度を %f 度に設定しました。", msg.data);
     if (initial_angle_timer_ && !initial_angle_timer_->is_canceled()) {
@@ -112,7 +138,9 @@ private:
       // ホース制御へ回収開始を指示する。
     } else if (state_ == STATE_STOPPING) {
       RCLCPP_INFO(this->get_logger(), "  -> 一時停止中...");
-      transition_timer_ = this->create_wall_timer(1s, std::bind(&TaskManagerNode::on_stop_done, this));
+      transition_timer_ = this->create_wall_timer(
+        std::chrono::duration<double>(stop_duration_sec_),
+        std::bind(&TaskManagerNode::on_stop_done, this));
     }
   }
 
