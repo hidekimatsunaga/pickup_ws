@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, PointStamped
-from std_msgs.msg import Float32, Bool
+from std_msgs.msg import Float32, Bool, String
 import math
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
@@ -30,13 +30,16 @@ class ObjectChaserNode(Node):
             PointStamped, '/detected_depth_points', self.point_callback, 10)
         self.camera_angle_sub = self.create_subscription(
             Float32, '/cameraswingmotor/angle', self.camera_angle_callback, 10)
+        # ロボット状態（/robot/state）で動作をゲートする
+        self.state_sub = self.create_subscription(
+            String, '/robot/state', self.state_callback, 10)
 
         # === 状態保持用の変数 ===
         self.current_camera_angle_deg = None  # 現在のカメラ角度（度数法）
 
         # === 制御パラメータ (ロボット移動) ===
         self.target_frame = 'base_link'
-        self.target_distance = 0.85      # ロボットと物体の目標距離 [m]
+        self.target_distance = 0.9      # ロボットと物体の目標距離 [m]
         self.stop_threshold = 0.05      # 停止判定の許容誤差 [m]
         self.kp_linear = 0.3            # 距離に対する比例ゲイン
         self.kp_angular = 0.1           # （今回は使ってないが一応残す）
@@ -109,6 +112,8 @@ class ObjectChaserNode(Node):
         
         # === 停止状態フラグ ===
         self.is_stopped = False
+        # === ロボットの現在状態（task_manager から購読）===
+        self.current_robot_state = None  # "initializing" / "searching" / "approaching" / "collecting" / "stopping"
 
     # =========================================================
     #  LUT 読み込み
@@ -157,8 +162,26 @@ class ObjectChaserNode(Node):
         """現在のカメラ角度を常に更新するコールバック"""
         self.current_camera_angle_deg = msg.data
 
+    def state_callback(self, msg: String):
+        """/robot/state を購読して object_chaser の動作をゲートする"""
+        prev = self.current_robot_state
+        self.current_robot_state = msg.data
+        # APPROACHING 以外の状態では確実に停止させる
+        if self.current_robot_state != "approaching":
+            if not self.is_stopped:
+                self.is_stopped = True
+                self.stop_robot()
+            # アプローチ以外ではフェーズをリセット
+            self.approach_phase = 0
+            self.completion_notified = False
+
     def point_callback(self, msg: PointStamped):
         """物体を検出したときに呼ばれるメインのコールバック"""
+        # APPROACHING 状態以外は動作しない（安全のため停止）
+        if self.current_robot_state != "approaching":
+            self.is_stopped = True
+            self.stop_robot()
+            return
         # 停止中は検出を無視
         if self.is_stopped:
             return
@@ -407,6 +430,12 @@ class ObjectChaserNode(Node):
     # =========================================================
     def check_timeout(self):
         """一定時間、物体を検出できなかったらロボットを停止させる"""
+        # APPROACHING 以外では常に停止維持、以降の処理はスキップ
+        if self.current_robot_state != "approaching":
+            if not self.is_stopped:
+                self.is_stopped = True
+                self.stop_robot()
+            return
         if self.get_clock().now() - self.last_detection_time > rclpy.duration.Duration(seconds=1.0):
             self.is_stopped = True
             self.stop_robot()
@@ -434,7 +463,8 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

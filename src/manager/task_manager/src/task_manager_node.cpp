@@ -61,8 +61,8 @@ public:
     // 初期状態
     set_state(STATE_INITIALIZING);
 
-    // カメラ初期化
-    initialize_camera();
+    // カメラ初期化（不要なのでコメントアウト）
+    // initialize_camera();
 
     // 2秒後に探索開始
     transition_timer_ = this->create_wall_timer(
