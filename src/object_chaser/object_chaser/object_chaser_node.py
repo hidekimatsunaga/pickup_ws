@@ -106,6 +106,9 @@ class ObjectChaserNode(Node):
 
         # 平滑化後の目標角の保持
         self._smoothed_target_deg = None
+        
+        # === 停止状態フラグ ===
+        self.is_stopped = False
 
     # =========================================================
     #  LUT 読み込み
@@ -156,6 +159,10 @@ class ObjectChaserNode(Node):
 
     def point_callback(self, msg: PointStamped):
         """物体を検出したときに呼ばれるメインのコールバック"""
+        # 停止中は検出を無視
+        if self.is_stopped:
+            return
+            
         self.last_detection_time = self.get_clock().now()
 
         # # --- ロボット制御用：base_link に変換 ---
@@ -264,6 +271,8 @@ class ObjectChaserNode(Node):
         """
         LUT に基づき (y, z) からカメラ角度[deg]を推定。
         k 個の最近傍を距離の逆数重みで平均。
+        
+        非常に近い場合（<0.1m）は最小角度（最大下向き）を返す。
         """
         n = len(self.lut_angle)
         if n == 0:
@@ -285,6 +294,13 @@ class ObjectChaserNode(Node):
 
         # 近い順のインデックス
         idx_sorted = sorted(range(n), key=lambda i: dists[i])
+
+        # 最も近いサンプルとの距離
+        closest_dist = dists[idx_sorted[0]]
+        
+        # 非常に近い場合は最小角度（最大下向き）を返す
+        if closest_dist < 0.1:
+            return self.min_camera_angle_deg
 
         eps = 1e-6
         num = 0.0
@@ -323,6 +339,7 @@ class ObjectChaserNode(Node):
 
         # 目標距離に到達したかどうか
         if abs(distance_error) < self.stop_threshold:
+            self.is_stopped = True
             self.stop_robot()
             self.get_logger().info("Target distance reached.")
 
@@ -391,6 +408,7 @@ class ObjectChaserNode(Node):
     def check_timeout(self):
         """一定時間、物体を検出できなかったらロボットを停止させる"""
         if self.get_clock().now() - self.last_detection_time > rclpy.duration.Duration(seconds=1.0):
+            self.is_stopped = True
             self.stop_robot()
 
     def stop_robot(self):
@@ -400,6 +418,11 @@ class ObjectChaserNode(Node):
         cmd.linear.y = 0.0
         cmd.angular.z = 0.0
         self.cmd_pub.publish(cmd)
+        
+        # 停止時はカメラを最大下向き（最小角度）に固定
+        camera_msg = Float32()
+        camera_msg.data = self.max_camera_angle_deg
+        self.camera_swing_pub.publish(camera_msg)
 
 
 def main(args=None):
