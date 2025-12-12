@@ -1,0 +1,16 @@
+object_chaser_node:
+  ros__parameters:
+    # 段階的アプローチ制御
+    approach.phase1_switch_x: 1.2
+    approach.lateral_tolerance: 0.3
+    approach.phase1_forward_speed: 0.08
+    approach.phase2_lateral_speed: 0.06
+    approach.phase3_final_forward_speed: 0.08
+
+    # カメラ揺れ対策
+    camera.target_smooth_alpha: 0.3
+    camera.max_step_deg: 2.0
+    camera.deadband_deg: 0.4
+
+    # カメラスイングLUT CSV
+    swing_lut_csv: "/home/matsunaga-h/pickup_ws/src/object_chaser/csv/camera_swing_calib_yz.csv"

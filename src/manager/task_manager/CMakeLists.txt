@@ -34,6 +34,12 @@ ament_target_dependencies(task_manager_node
   tf2_ros
   tf2_geometry_msgs
 )
+add_executable(movement_controller_node src/movement_controller_node.cpp)
+ament_target_dependencies(movement_controller_node
+  rclcpp
+  std_msgs
+  geometry_msgs
+)
 add_executable(vacuum_manager_node src/vacuum_manager_node.cpp)
 ament_target_dependencies(vacuum_manager_node
   rclcpp
@@ -64,6 +70,7 @@ ament_target_dependencies(manipulator_manager_node
 # インストール
 install(TARGETS
   task_manager_node 
+  movement_controller_node
   vacuum_manager_node
   manipulator_manager_node
   DESTINATION lib/${PROJECT_NAME}

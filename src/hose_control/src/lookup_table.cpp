@@ -37,6 +37,9 @@ public:
     this->declare_parameter<double>("air_threshold", -110.0);
     this->get_parameter("air_threshold", air_threshold_);
 
+    this->declare_parameter<int>("air_threshold_hits_required", 3);
+    this->get_parameter("air_threshold_hits_required", air_threshold_hits_required_);
+
     this->declare_parameter<int>("k_neighbors", 4);
     this->get_parameter("k_neighbors", k_neighbors_);
 
@@ -101,6 +104,8 @@ private:
   std::vector<std::vector<double>> sequence_data_; // シーケンスデータを保持する変数
   std::vector<double> current_motor_angles_; // 最新のモーター角度を保持する変数
   double air_threshold_;
+  int air_threshold_hits_required_ = 3;
+  int air_threshold_hits_counter_ = 0;
 
   // Parameters (populated from node parameters)
   std::string csv_filepath_;
@@ -156,6 +161,13 @@ private:
   void airCallback(const std_msgs::msg::Float32::SharedPtr msg)
   {
     air_value_ = msg->data;
+
+    // Count consecutive threshold hits to avoid accidental spikes triggering the sequence.
+    if (air_value_ <= air_threshold_) {
+      air_threshold_hits_counter_ = std::min(air_threshold_hits_counter_ + 1, air_threshold_hits_required_);
+    } else {
+      air_threshold_hits_counter_ = 0;
+    }
   }
 
   void callback(const geometry_msgs::msg::PointStamped::SharedPtr msg) {
@@ -167,8 +179,9 @@ private:
     }
 
     // しきい値超過ならシーケンスを開始
-    if (air_value_ <= air_threshold_) {
-      RCLCPP_WARN(get_logger(), "Air sensor threshold exceeded! Starting sequence.");
+    if (air_threshold_hits_counter_ >= air_threshold_hits_required_) {
+      RCLCPP_WARN(get_logger(), "Air sensor threshold exceeded %d times. Starting sequence.", air_threshold_hits_counter_);
+      air_threshold_hits_counter_ = 0; // reset so the next run needs fresh hits
       is_in_sequence_mode_ = true;
       sequence_step_ = 0;
 

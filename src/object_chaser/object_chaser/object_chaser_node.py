@@ -92,6 +92,21 @@ class ObjectChaserNode(Node):
 
         self.completion_notified = False
 
+        # === カメラ揺れ対策用パラメータ ===
+        # 目標角の平滑化係数（0:即応、1:変化しない）
+        self.declare_parameter('camera.target_smooth_alpha', 0.3)
+        # 1周期あたりの最大変更量 [deg]
+        self.declare_parameter('camera.max_step_deg', 2.0)
+        # 目標角のデッドバンド [deg]（この範囲内の差分は無視）
+        self.declare_parameter('camera.deadband_deg', 0.4)
+
+        self.target_smooth_alpha = float(self.get_parameter('camera.target_smooth_alpha').get_parameter_value().double_value)
+        self.camera_max_step_deg = float(self.get_parameter('camera.max_step_deg').get_parameter_value().double_value)
+        self.camera_deadband_deg = float(self.get_parameter('camera.deadband_deg').get_parameter_value().double_value)
+
+        # 平滑化後の目標角の保持
+        self._smoothed_target_deg = None
+
     # =========================================================
     #  LUT 読み込み
     # =========================================================
@@ -198,13 +213,33 @@ class ObjectChaserNode(Node):
         # 物理的な可動範囲でクランプ
         target_deg = max(self.min_camera_angle_deg, min(self.max_camera_angle_deg, target_deg))
 
+        # --- 揺れ対策: 平滑化 + レート制限 + デッドバンド ---
+        prev = self._smoothed_target_deg if self._smoothed_target_deg is not None else target_deg
+        # 平滑化（一次遅れ）: new = (1-alpha)*target + alpha*prev
+        alpha = max(0.0, min(1.0, self.target_smooth_alpha))
+        smoothed = (1.0 - alpha) * target_deg + alpha * prev
+
+        # レート制限（1周期あたりの最大変化量）
+        delta = smoothed - prev
+        max_step = max(0.0, self.camera_max_step_deg)
+        if delta > max_step:
+            smoothed = prev + max_step
+        elif delta < -max_step:
+            smoothed = prev - max_step
+
+        # デッドバンド（小さい変化は無視して直前値を維持）
+        if abs(smoothed - prev) < self.camera_deadband_deg:
+            smoothed = prev
+
+        # 保持してパブリッシュ
+        self._smoothed_target_deg = smoothed
         cmd_msg = Float32()
-        cmd_msg.data = target_deg
+        cmd_msg.data = smoothed
         self.camera_swing_pub.publish(cmd_msg)
 
         # デバッグ
         self.get_logger().info(
-            f"[Camera] y={y_cam:.3f}, z={z_cam:.3f}, dist={distance:.2f} -> target_angle={target_deg:.2f} deg"
+            f"[Camera] y={y_cam:.3f}, z={z_cam:.3f}, dist={distance:.2f} -> target={target_deg:.2f} deg, cmd={smoothed:.2f} deg"
         )
 
     def control_camera_swing_by_distance(self, distance: float) -> float:

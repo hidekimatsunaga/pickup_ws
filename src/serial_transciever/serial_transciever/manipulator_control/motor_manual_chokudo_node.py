@@ -72,6 +72,15 @@ class OffsetCommandNode(Node):
                 self.get_logger().info(f'Sent command: Set all motors to predefined pose "A".')
                 continue # 他の条件と一致しないように次のループへ
 
+            if line == "K":
+                # 'k' が入力されたら、すべてのモーターを指定の角度に設定
+                target_angles = [280.28, 274.22, 232.73, 168.13, 61.96, 72.95, 415.72, 585.26, 445.34]
+                msg = Float32MultiArray()
+                msg.data = target_angles
+                self.publisher.publish(msg)
+                self.get_logger().info('Sent command: Set all motors to predefined pose "K".')
+                continue
+
             #直動機構モーター
             if line == "CA+": # 上がる
                 self.publish_chokudo_offset(+360.0)
