@@ -33,7 +33,7 @@ public:
     sequence_step_(0) //シーケンスの現在のステップ
   {
     // Node parameters (can be overridden via YAML or command-line)
-    this->declare_parameter<std::string>("csv_filepath", "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1211_related.csv");
+    this->declare_parameter<std::string>("csv_filepath", "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1213_cleaned_deduped_motor10_sweep.csv");
     this->get_parameter("csv_filepath", csv_filepath_);
 
     this->declare_parameter<double>("air_threshold", -110.0);

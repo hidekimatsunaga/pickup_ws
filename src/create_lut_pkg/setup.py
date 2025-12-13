@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'slackfree_sweeper = create_lut_pkg.slackfree_sweeper:main',
+            'motor10_sweep = create_lut_pkg.motor10_sweep_node:main',
         ],
     },
 )
