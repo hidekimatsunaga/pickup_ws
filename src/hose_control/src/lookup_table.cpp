@@ -92,6 +92,8 @@ public:
     state_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/state", 10);
     hose_result_pub_ = this->create_publisher<std_msgs::msg::Bool>("/hose/result", 10);
 
+  }
+
 private:
   std::vector<DataPoint> dataset_;
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_;
