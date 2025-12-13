@@ -174,6 +174,10 @@ class ObjectChaserNode(Node):
             # アプローチ以外ではフェーズをリセット
             self.approach_phase = 0
             self.completion_notified = False
+        else:
+            # approaching に入ったら動作を許可（停止フラグ解除）
+            if self.is_stopped:
+                self.is_stopped = False
 
     def point_callback(self, msg: PointStamped):
         """物体を検出したときに呼ばれるメインのコールバック"""
@@ -436,7 +440,7 @@ class ObjectChaserNode(Node):
                 self.is_stopped = True
                 self.stop_robot()
             return
-        if self.get_clock().now() - self.last_detection_time > rclpy.duration.Duration(seconds=1.0):
+        if self.get_clock().now() - self.last_detection_time > rclpy.duration.Duration(seconds=10.0):
             self.is_stopped = True
             self.stop_robot()
 
@@ -448,10 +452,11 @@ class ObjectChaserNode(Node):
         cmd.angular.z = 0.0
         self.cmd_pub.publish(cmd)
         
-        # 停止時はカメラを最大下向き（最小角度）に固定
-        camera_msg = Float32()
-        camera_msg.data = self.max_camera_angle_deg
-        self.camera_swing_pub.publish(camera_msg)
+        # 停止時のカメラ制御：collecting のときだけ最大下向きに固定
+        if self.current_robot_state == "collecting":
+            camera_msg = Float32()
+            camera_msg.data = self.max_camera_angle_deg
+            self.camera_swing_pub.publish(camera_msg)
 
 
 def main(args=None):

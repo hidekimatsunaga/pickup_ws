@@ -33,7 +33,7 @@ public:
     sequence_step_(0) //シーケンスの現在のステップ
   {
     // Node parameters (can be overridden via YAML or command-line)
-    this->declare_parameter<std::string>("csv_filepath", "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1202_related_cleaned_deduped.csv");
+    this->declare_parameter<std::string>("csv_filepath", "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1211_related.csv");
     this->get_parameter("csv_filepath", csv_filepath_);
 
     this->declare_parameter<double>("air_threshold", -110.0);
@@ -91,6 +91,8 @@ public:
 
     state_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/state", 10);
     hose_result_pub_ = this->create_publisher<std_msgs::msg::Bool>("/hose/result", 10);
+
+    // lookup_table では起動時の初期角度送信は行わない
 
   }
 
@@ -165,6 +167,7 @@ private:
 
     RCLCPP_INFO(this->get_logger(), "Loaded %zu entries from CSV.", dataset_.size());
   }
+
   void airCallback(const std_msgs::msg::Float32::SharedPtr msg)
   {
     air_value_ = msg->data;

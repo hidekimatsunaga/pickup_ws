@@ -34,6 +34,11 @@ public:
       [this](const geometry_msgs::msg::PointStamped::SharedPtr msg)
       {
         goal_ = *msg;
+        // ArUcoがまだ見えていない場合は、取得した検出点をそのまま出力しておく
+        if (current_robot_state_ == "collecting" && !meas_received_) {
+          publish_cmd();
+          RCLCPP_INFO(this->get_logger(), "No ArUco yet; publishing detected point as /hose/goal_point");
+        }
       });
 
 

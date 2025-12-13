@@ -6,6 +6,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float32.hpp>
+#include <std_msgs/msg/float32_multi_array.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 
 using namespace std::chrono_literals;
@@ -30,6 +31,11 @@ public:
     state_publish_period_sec_ = this->get_parameter("state_publish_period_sec").as_double();
     stop_duration_sec_ = this->get_parameter("stop_duration_sec").as_double();
 
+    // 起動時に一度だけ送る motor1-9 初期角度
+    this->declare_parameter<std::vector<double>>("initial_motor_angles",
+      std::vector<double>{280.28, 274.22, 232.73, 168.13, 61.96, 72.95, 415.72, 585.26, 445.34});
+    initial_motor_angles_ = this->get_parameter("initial_motor_angles").as_double_array();
+
     // 状態定義
     STATE_INITIALIZING = "initializing";
     STATE_SEARCHING = "searching";
@@ -40,6 +46,7 @@ public:
     // Publisher / Subscriber
     state_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/state", 10);
     camera_angle_pub_ = this->create_publisher<std_msgs::msg::Float32>("/cameraswingmotor/target_angle", 10);
+    motor_angles_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", 10);
 
     detected_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
       "/detected_depth_points", 10,
@@ -61,8 +68,7 @@ public:
     // 初期状態
     set_state(STATE_INITIALIZING);
 
-    // カメラ初期化（不要なのでコメントアウト）
-    // initialize_camera();
+    // 初期角度送信は initializing 状態で行う（ここでは送らない）
 
     // 2秒後に探索開始
     transition_timer_ = this->create_wall_timer(
@@ -87,10 +93,12 @@ private:
   double search_start_delay_sec_{};
   double state_publish_period_sec_{};
   double stop_duration_sec_{};
+  std::vector<double> initial_motor_angles_{};
 
   // Publishers / Subscribers
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr state_pub_;
   rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr camera_angle_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr motor_angles_pub_;
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr detected_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr hose_result_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr chaser_completion_sub_;
@@ -100,23 +108,12 @@ private:
   rclcpp::TimerBase::SharedPtr transition_timer_;
   rclcpp::TimerBase::SharedPtr initial_angle_timer_;
 
-  void initialize_camera()
-  {
-    RCLCPP_INFO(this->get_logger(), "カメラの初期化を行います...");
-    initial_angle_timer_ = this->create_wall_timer(
-      std::chrono::duration<double>(initial_angle_delay_sec_),
-      std::bind(&TaskManagerNode::_publish_initial_camera_angle, this));
-  }
-
-  void _publish_initial_camera_angle()
+  void publish_initial_camera_angle()
   {
     std_msgs::msg::Float32 msg;
     msg.data = static_cast<float>(initial_angle_deg_);
     camera_angle_pub_->publish(msg);
-    RCLCPP_INFO(this->get_logger(), "カメラの角度を %f 度に設定しました。", msg.data);
-    if (initial_angle_timer_ && !initial_angle_timer_->is_canceled()) {
-      initial_angle_timer_->cancel();
-    }
+    RCLCPP_INFO(this->get_logger(), "[initializing] カメラの角度を %f 度に設定", msg.data);
   }
 
   void set_state(const std::string & new_state)
@@ -130,7 +127,18 @@ private:
       transition_timer_->cancel();
     }
 
-    if (state_ == STATE_APPROACHING) {
+    if (state_ == STATE_INITIALIZING) {
+      // initializing に入ったタイミングで初期角度を送る
+      publish_initial_camera_angle();
+      if (initial_motor_angles_.size() == 9) {
+        std_msgs::msg::Float32MultiArray init_msg;
+        init_msg.data.assign(initial_motor_angles_.begin(), initial_motor_angles_.end());
+        motor_angles_pub_->publish(init_msg);
+        RCLCPP_INFO(this->get_logger(), "[initializing] 初期 /motor_angles を送信 (9要素)");
+      } else {
+        RCLCPP_WARN(this->get_logger(), "initial_motor_angles は9要素である必要があります (got %zu)", initial_motor_angles_.size());
+      }
+    } else if (state_ == STATE_APPROACHING) {
       RCLCPP_INFO(this->get_logger(), "  -> ゴミに接近中...ObjectChaserNodeからの完了通知を待ちます。");
       // 必要ならここでナビゲーションへ目標を指示する。
     } else if (state_ == STATE_COLLECTING) {
