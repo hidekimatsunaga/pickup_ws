@@ -1,5 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <Eigen/Dense>
 #include <cmath>
 #include <std_msgs/msg/bool.hpp>
@@ -15,16 +16,24 @@ public:
     tol_(this->declare_parameter("tolerance", 0.01)),
     auto_start_(this->declare_parameter("auto_start_grasp", true)),
     arm_err_thresh_(this->declare_parameter("arm_error_threshold", 0.05)),
-    meas_received_(false)
+    meas_received_(false),
+    current_robot_state_("")
   {
+    // ロボット状態購読
+    sub_state_ = this->create_subscription<std_msgs::msg::String>(
+      "/robot/state", 10,
+      [this](const std_msgs::msg::String::SharedPtr msg)
+      {
+        current_robot_state_ = msg->data;
+        RCLCPP_INFO(this->get_logger(), "Robot state: %s", current_robot_state_.c_str());
+      });
+
     // 目標位置
     sub_goal_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
       "/detected_depth_points", 10,
       [this](const geometry_msgs::msg::PointStamped::SharedPtr msg)
       {
         goal_ = *msg;
-        publish_cmd();
-        start_sent_ = false;
       });
 
 
@@ -72,9 +81,11 @@ private:
   double arm_err_thresh_;
   bool meas_received_;
   bool start_sent_{false};
+  std::string current_robot_state_;
 
 
   /* サブスクライバとパブリッシャーのメンバ宣言 */
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_state_;
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_goal_;
   rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr sub_meas_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pub_cmd_;
@@ -91,6 +102,7 @@ private:
   void publish_start_grasp_once()
   {
     if (start_sent_ || !auto_start_) return;
+    if (current_robot_state_ != "collecting") return;
     std_msgs::msg::Bool b; b.data = true;
     pub_start_->publish(b);
     start_sent_ = true;
@@ -99,6 +111,8 @@ private:
 
 
   void feedback() {
+    // "collecting" 状態でのみ動作
+    if (current_robot_state_ != "collecting") return;
     if (!meas_received_) return;
     using Vec3 = Eigen::Vector3d;
     Vec3 g(goal_.point.x, goal_.point.y, goal_.point.z);

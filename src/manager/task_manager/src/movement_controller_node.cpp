@@ -5,6 +5,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 
 using namespace std::chrono_literals;
@@ -38,6 +39,10 @@ public:
       "/robot/state", 10,
       std::bind(&MovementControllerNode::state_callback, this, std::placeholders::_1));
 
+    chaser_completion_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+      "/chaser/approach_completed", 10,
+      std::bind(&MovementControllerNode::chaser_completion_callback, this, std::placeholders::_1));
+
     publish_timer_ = this->create_wall_timer(
       std::chrono::duration<double>(publish_period_sec_),
       std::bind(&MovementControllerNode::publish_cmd_vel, this));
@@ -56,6 +61,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr state_sub_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr chaser_cmd_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr chaser_completion_sub_;
 
   // タイマー
   rclcpp::TimerBase::SharedPtr publish_timer_;
@@ -82,6 +88,15 @@ private:
       std::transform(upper_state.begin(), upper_state.end(), upper_state.begin(), ::toupper);
       RCLCPP_INFO(this->get_logger(), "状態が [ %s ] になりました。移動制御を更新します。", upper_state.c_str());
       current_state_ = msg->data;
+    }
+  }
+
+  void chaser_completion_callback(const std_msgs::msg::Bool::SharedPtr msg)
+  {
+    if (msg->data) {
+      RCLCPP_INFO(this->get_logger(), "🛑 接近完了通知を受信。cmd_vel をゼロに強制します。");
+      approaching_twist_ = geometry_msgs::msg::Twist();  // すべてゼロ
+      chaser_active_ = false;
     }
   }
 

@@ -3,6 +3,8 @@
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/float32.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -87,7 +89,8 @@ public:
 
     marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/hose/neighbor_points", 10); // ★追加
 
-  }
+    state_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/state", 10);
+    hose_result_pub_ = this->create_publisher<std_msgs::msg::Bool>("/hose/result", 10);
 
 private:
   std::vector<DataPoint> dataset_;
@@ -97,6 +100,8 @@ private:
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr air_sub_;
   rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr current_angles_sub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_; // ★追加
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr state_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr hose_result_pub_;
 
   double air_value_;  
   bool is_in_sequence_mode_;
@@ -363,6 +368,18 @@ private:
         RCLCPP_INFO(this->get_logger(), "Sequence finished.");
         is_in_sequence_mode_ = false;
         sequence_step_ = 0;
+        
+        // ★追加：シーケンス完了時に状態とホース結果を発行
+        std_msgs::msg::String state_msg;
+        state_msg.data = "collecting_finished";
+        state_pub_->publish(state_msg);
+        RCLCPP_INFO(this->get_logger(), "Published /robot/state: collecting_finished");
+        
+        std_msgs::msg::Bool result_msg;
+        result_msg.data = true;  // 回収成功
+        hose_result_pub_->publish(result_msg);
+        RCLCPP_INFO(this->get_logger(), "Published /hose/result: true (collection success)");
+        
         return;
       }
 
