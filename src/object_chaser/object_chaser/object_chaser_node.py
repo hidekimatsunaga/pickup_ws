@@ -215,7 +215,7 @@ class ObjectChaserNode(Node):
         # ロボットの前進方向 ≒ カメラの +z
         # ロボットの左右 ≒ カメラの +x （向きが逆なら符号変える）
         target_x = z_cam      # 前後
-        target_y = -x_cam      # 左右
+        target_y = x_cam      # 左右
 
         distance = math.sqrt(target_x**2 + target_y**2)
 
