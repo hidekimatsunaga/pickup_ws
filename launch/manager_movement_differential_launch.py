@@ -7,8 +7,8 @@ from launch.substitutions import LaunchConfiguration
 def generate_launch_description():
     object_chaser_params_arg = DeclareLaunchArgument(
         'object_chaser_params',
-        default_value='/home/matsunaga-h/pickup_ws/src/object_chaser_cpp/config/object_chaser_params.yaml',
-        description='Path to params YAML for object_chaser_node'
+        default_value='/home/matsunaga-h/pickup_ws/src/object_chaser_cpp/config/object_chaser_differential_params.yaml',
+        description='Path to params YAML for object_chaser_node_differential'
     )
 
     task_manager_params_arg = DeclareLaunchArgument(
@@ -17,10 +17,10 @@ def generate_launch_description():
         description='Path to params YAML for task_manager and movement_controller'
     )
 
-    object_chaser = Node(
+    object_chaser_differential = Node(
         package='object_chaser_cpp',
-        executable='object_chaser_node',
-        name='object_chaser_node',
+        executable='object_chaser_node_differential',
+        name='object_chaser_node_differential',
         parameters=[LaunchConfiguration('object_chaser_params')]
     )
 
@@ -43,5 +43,5 @@ def generate_launch_description():
         task_manager_params_arg,
         task_manager,
         movement_controller,
-        object_chaser,
+        object_chaser_differential,
     ])

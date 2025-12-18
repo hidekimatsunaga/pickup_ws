@@ -1,0 +1,31 @@
+object_chaser_node:
+  ros__parameters:
+    # ロボット移動制御パラメータ
+    target_distance: 0.9
+    stop_threshold: 0.05
+    kp_linear: 0.3
+    max_linear_speed: 0.1
+    max_angular_speed: 0.05
+
+    # 段階的アプローチ制御
+    approach.phase1_switch_x: 1.2
+    approach.lateral_tolerance: 0.3
+    approach.phase1_forward_speed: 0.08
+    approach.phase2_lateral_speed: 0.06
+    approach.phase3_final_forward_speed: 0.08
+
+    # カメラ制御パラメータ
+    far_distance: 2.0
+    near_distance: 0.5
+    far_camera_angle_deg: 30.0
+    near_camera_angle_deg: 60.0
+    min_camera_angle_deg: 17.6
+    max_camera_angle_deg: 63.9
+
+    # カメラ揺れ対策
+    camera.target_smooth_alpha: 0.3
+    camera.max_step_deg: 2.0
+    camera.deadband_deg: 0.4
+
+    # カメラスイングLUT CSV
+    swing_lut_csv: "/home/matsunaga-h/pickup_ws/src/object_chaser/csv/camera_swing_calib_yz.csv"
