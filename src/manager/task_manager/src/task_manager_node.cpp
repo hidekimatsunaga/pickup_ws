@@ -45,8 +45,9 @@ public:
 
     // Publisher / Subscriber
     state_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/state", 10);
-    camera_angle_pub_ = this->create_publisher<std_msgs::msg::Float32>("/cameraswingmotor/target_angle", 10);
-    motor_angles_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", 10);
+    auto latched_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
+    camera_angle_pub_ = this->create_publisher<std_msgs::msg::Float32>("/cameraswingmotor/target_angle", latched_qos);
+    motor_angles_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/motor_angles", latched_qos);
 
     detected_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
       "/detected_depth_points", 10,
@@ -107,6 +108,8 @@ private:
   rclcpp::TimerBase::SharedPtr state_publish_timer_;
   rclcpp::TimerBase::SharedPtr transition_timer_;
   rclcpp::TimerBase::SharedPtr initial_angle_timer_;
+  rclcpp::TimerBase::SharedPtr initial_broadcast_timer_;
+  std::chrono::steady_clock::time_point initial_broadcast_deadline_;
 
   void publish_initial_camera_angle()
   {
@@ -114,6 +117,43 @@ private:
     msg.data = static_cast<float>(initial_angle_deg_);
     camera_angle_pub_->publish(msg);
     RCLCPP_INFO(this->get_logger(), "[initializing] カメラの角度を %f 度に設定", msg.data);
+  }
+
+  void initial_broadcast_tick()
+  {
+    if (state_ != STATE_INITIALIZING) {
+      if (initial_broadcast_timer_ && !initial_broadcast_timer_->is_canceled()) {
+        initial_broadcast_timer_->cancel();
+      }
+      return;
+    }
+
+    auto now = std::chrono::steady_clock::now();
+
+    size_t cam_subs = camera_angle_pub_->get_subscription_count();
+    size_t motor_subs = motor_angles_pub_->get_subscription_count();
+
+    // 再送（短時間）
+    std_msgs::msg::Float32 cam_msg;
+    cam_msg.data = static_cast<float>(initial_angle_deg_);
+    camera_angle_pub_->publish(cam_msg);
+
+    if (initial_motor_angles_.size() == 9) {
+      std_msgs::msg::Float32MultiArray init_msg;
+      init_msg.data.assign(initial_motor_angles_.begin(), initial_motor_angles_.end());
+      motor_angles_pub_->publish(init_msg);
+    }
+
+    if ((cam_subs > 0 && motor_subs > 0) || now >= initial_broadcast_deadline_) {
+      if (initial_broadcast_timer_ && !initial_broadcast_timer_->is_canceled()) {
+        initial_broadcast_timer_->cancel();
+      }
+      if (cam_subs > 0 || motor_subs > 0) {
+        RCLCPP_INFO(this->get_logger(), "[initializing] 初期メッセージの配達を確認。再送を停止します。");
+      } else {
+        RCLCPP_WARN(this->get_logger(), "[initializing] 期限内に購読者を確認できませんでした。再送を停止します。");
+      }
+    }
   }
 
   void set_state(const std::string & new_state)
@@ -125,6 +165,9 @@ private:
 
     if (transition_timer_ && !transition_timer_->is_canceled()) {
       transition_timer_->cancel();
+    }
+    if (initial_broadcast_timer_ && !initial_broadcast_timer_->is_canceled()) {
+      initial_broadcast_timer_->cancel();
     }
 
     if (state_ == STATE_INITIALIZING) {
@@ -138,6 +181,11 @@ private:
       } else {
         RCLCPP_WARN(this->get_logger(), "initial_motor_angles は9要素である必要があります (got %zu)", initial_motor_angles_.size());
       }
+      // 短時間の再送タイマーを開始（最大で探索開始待ち時間まで）
+      initial_broadcast_deadline_ = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(search_start_delay_sec_));
+      initial_broadcast_timer_ = this->create_wall_timer(
+        100ms,
+        std::bind(&TaskManagerNode::initial_broadcast_tick, this));
     } else if (state_ == STATE_APPROACHING) {
       RCLCPP_INFO(this->get_logger(), "  -> ゴミに接近中...ObjectChaserNodeからの完了通知を待ちます。");
       // 必要ならここでナビゲーションへ目標を指示する。

@@ -100,6 +100,7 @@ private:
 
   void publish_cmd() {
     cmd_ = goal_;
+    cmd_.header.frame_id = goal_.header.frame_id;  // 検出点の座標系を使用
     pub_cmd_->publish(cmd_);
   }
 
@@ -138,6 +139,7 @@ private:
 
     Vec3 next = g + K_ * e;                    // 目標補正
     cmd_.header.stamp = this->now();
+    cmd_.header.frame_id = meas_.header.frame_id;  // ArUcoの座標系を使用
     cmd_.point.x = next.x();
     cmd_.point.y = next.y();
     cmd_.point.z = next.z();

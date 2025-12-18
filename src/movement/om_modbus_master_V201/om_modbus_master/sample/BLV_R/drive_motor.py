@@ -119,8 +119,8 @@ class MySubscription(Node):
         self.sub2 = self.create_subscription(
             State, "om_state0", self.state_callback, const.QUEUE_SIZE
         )
-        self.pub = self.create_publisher(TwistWithCovarianceStamped, "/localization/twist_estimator/twist_with_covariance", const.QUEUE_SIZE)
-        self.pub2 = self.create_publisher(Odometry, "odom", const.QUEUE_SIZE)
+        # self.pub = self.create_publisher(TwistWithCovarianceStamped, "/localization/twist_estimator/twist_with_covariance", const.QUEUE_SIZE)
+        # self.pub2 = self.create_publisher(Odometry, "odom", const.QUEUE_SIZE)
         # self.pub = self.create_publisher(DriveMotor, "drive_odom", const.QUEUE_SIZE)
         self.ca = ClientAsync("sub")
 

@@ -43,6 +43,7 @@ ros2 bag record \
     /steer_odom \
     /tf \
     /wheel_odom \
+    /robot/state \
     --compression-mode file \
     --compression-format zstd \
     -o ~/pickup_ws/bags/record_$(date +%Y%m%d_%H%M%S)
