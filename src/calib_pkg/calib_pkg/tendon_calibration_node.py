@@ -25,9 +25,9 @@ class TendonCalibrationNode(Node):
         # たるみ検出後にさらにほどく回数
         self.extra_slack_steps = self.declare_parameter('extra_slack_steps', 3).value
         # スイッチON検出後にさらに巻き取る回数
-        self.extra_tension_steps = self.declare_parameter('extra_tension_steps', 1).value
+        self.extra_tension_steps = self.declare_parameter('extra_tension_steps', 0).value
         # 安全用の角度範囲
-        self.min_angle = self.declare_parameter('min_angle', -360.0).value
+        self.min_angle = self.declare_parameter('min_angle',  0.0).value
         self.max_angle = self.declare_parameter('max_angle',  360.0).value
 
         # ----- Pub / Sub -----
