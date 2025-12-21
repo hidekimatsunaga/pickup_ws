@@ -17,6 +17,7 @@ public:
     auto_start_(this->declare_parameter("auto_start_grasp", true)),
     arm_err_thresh_(this->declare_parameter("arm_error_threshold", 0.05)),
     meas_received_(false),
+    goal_received_(false),
     current_robot_state_("")
   {
     // ロボット状態購読
@@ -34,6 +35,7 @@ public:
       [this](const geometry_msgs::msg::PointStamped::SharedPtr msg)
       {
         goal_ = *msg;
+        goal_received_ = true;
         // ArUcoがまだ見えていない場合は、取得した検出点をそのまま出力しておく
         if (current_robot_state_ == "collecting" && !meas_received_) {
           publish_cmd();
@@ -85,6 +87,7 @@ private:
   bool auto_start_;
   double arm_err_thresh_;
   bool meas_received_;
+  bool goal_received_;
   bool start_sent_{false};
   std::string current_robot_state_;
 
@@ -120,6 +123,11 @@ private:
     // "collecting" 状態でのみ動作
     if (current_robot_state_ != "collecting") return;
     if (!meas_received_) return;
+    if (!goal_received_) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                           "No /detected_depth_points received yet; skipping feedback");
+      return;
+    }
     using Vec3 = Eigen::Vector3d;
     Vec3 g(goal_.point.x, goal_.point.y, goal_.point.z);
     Vec3 m(meas_.point.x, meas_.point.y, meas_.point.z);
@@ -146,7 +154,6 @@ private:
     pub_cmd_->publish(cmd_);
   }
 };
-
 
 int main(int argc, char **argv)
 {
