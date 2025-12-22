@@ -1,7 +1,8 @@
 feedback_motor_publisher:
   ros__parameters:
-    csv_filepath: "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1213_cleaned_deduped_motor10_sweep.csv"
-    air_threshold: -120.0
+    # csv_filepath: "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1213_cleaned_deduped_motor10_sweep.csv"
+    csv_filepath: "/home/matsunaga-h/pickup_ws/angle_arucopose_csv_cleaned/aruco_motor_log_1213_cleaned_deduped_motor10_sweep_updated.csv"
+    air_threshold: -100.0
     k_neighbors: 3
     epsilon: 1e-9
     pickup_motor10_angle: 54.0

@@ -20,6 +20,7 @@ except ImportError:
     raise ImportError("pynput not found. Install with: pip install pynput")
 
 
+
 class IntegratedControlNode(Node):
     """統合コントロール: button_snapshot_logger + motor_manual_chokudo + thread_slack_or_taut"""
 
@@ -27,13 +28,9 @@ class IntegratedControlNode(Node):
         super().__init__('integrated_control_node')
 
         # ========== Snapshot Logger の初期化 ==========
-        # File setup
-        dir_path = os.path.expanduser('~/pickup_ws/angle_arucopose_csv/')
-        os.makedirs(dir_path, exist_ok=True)
-        ts = datetime.datetime.now().strftime('%m%d_%H%M%S')
-        fname = f'aruco_motor_integrated_log_{ts}.csv'
-        self.filepath = os.path.join(dir_path, fname)
-        self._init_csv()
+        # CSVは初回スナップショット時に作成（遅延生成）
+        self.csv_dir = os.path.expanduser('~/pickup_ws/angle_arucopose_csv/')
+        self.filepath: Optional[str] = None
 
         # Latest data caches
         self.latest_angles: Optional[List[float]] = None
@@ -43,8 +40,8 @@ class IntegratedControlNode(Node):
         self.data_lock = Lock()
 
         # ========== Thread Sensor Mode ==========
-        # 現在のモード（t=通常, s=逆）
-        self.sensor_mode = 't'
+        # 現在のモード（t=通常, s=逆, None=無効）
+        self.sensor_mode = None
 
         # ========== Subscriptions ==========
         self.create_subscription(Float32MultiArray, '/motor_current_angles', self._angle_cb, 10)
@@ -100,6 +97,10 @@ class IntegratedControlNode(Node):
 
     def _switch_cb(self, msg: Int8MultiArray) -> None:
         """センサー値による制御"""
+        if self.sensor_mode is None:
+            # モードが設定されていない場合はスキップ
+            return
+
         if len(msg.data) != 9:
             self.get_logger().warn(f'Invalid /switch length: {len(msg.data)}')
             return
@@ -145,12 +146,20 @@ class IntegratedControlNode(Node):
 
             # ========== Mode Switch (t/s) ==========
             if line == "T":
-                self.sensor_mode = 't'
-                self.get_logger().info("Switched to Mode T: (switch==0 → +3°)")
+                if self.sensor_mode == 't':
+                    self.sensor_mode = None
+                    self.get_logger().info("Disabled Mode T")
+                else:
+                    self.sensor_mode = 't'
+                    self.get_logger().info("Switched to Mode T: (switch==0 → +3°)")
                 continue
             elif line == "S":
-                self.sensor_mode = 's'
-                self.get_logger().info("Switched to Mode S: (switch==1 → -3°)")
+                if self.sensor_mode == 's':
+                    self.sensor_mode = None
+                    self.get_logger().info("Disabled Mode S")
+                else:
+                    self.sensor_mode = 's'
+                    self.get_logger().info("Switched to Mode S: (switch==1 → -3°)")
                 continue
 
             # ========== Predefined Poses ==========
@@ -231,6 +240,15 @@ class IntegratedControlNode(Node):
             if not self.latest_markers:
                 self.get_logger().warn('Snapshot pressed but no markers; skipping log.')
                 return
+
+            # 初回呼び出し時にCSVファイルを生成
+            if self.filepath is None:
+                os.makedirs(self.csv_dir, exist_ok=True)
+                ts = datetime.datetime.now().strftime('%m%d_%H%M%S')
+                fname = f'aruco_motor_integrated_log_{ts}.csv'
+                self.filepath = os.path.join(self.csv_dir, fname)
+                self._init_csv()
+                self.get_logger().info(f'Created CSV: {self.filepath}')
 
             timestamp = self.get_clock().now().to_msg()
             unix_time = Time.from_msg(timestamp).nanoseconds * 1e-9
