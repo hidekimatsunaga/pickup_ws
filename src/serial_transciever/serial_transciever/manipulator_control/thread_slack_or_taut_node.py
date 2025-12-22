@@ -11,8 +11,8 @@ class SensorMotorKeyboardSwitchNode(Node):
         # 現在のモータ角度
         self.current_angles = [0.0] * 9
 
-        # 現在のモード（a=通常, b=逆）
-        self.mode = 'a'
+        # 現在のモード（t=通常, s=逆）
+        self.mode = 't'
 
         # --- 購読 ---
         self.angle_sub = self.create_subscription(
@@ -36,7 +36,7 @@ class SensorMotorKeyboardSwitchNode(Node):
         thread = threading.Thread(target=self.keyboard_listener, daemon=True)
         thread.start()
 
-        self.get_logger().info("Node started. Press 'a' for +3° mode (switch=0), 'b' for -3° mode (switch=1).")
+        self.get_logger().info("Node started. Press 't' for +3° mode (switch=0), 's' for -3° mode (switch=1).")
 
     # 現在角度更新
     def current_angle_callback(self, msg: Float32MultiArray):
@@ -54,13 +54,13 @@ class SensorMotorKeyboardSwitchNode(Node):
         new_angles = self.current_angles.copy()
         updated = False
 
-        if self.mode == 'a':
+        if self.mode == 't':
             for idx, val in enumerate(msg.data):
                 if val == 0:
                     new_angles[idx] += 3.0
                     updated = True
-                    self.get_logger().info(f'[Mode A] Switch[{idx+1}] = 0 → +3°')
-        elif self.mode == 'b':
+                    self.get_logger().info(f'[Mode T] Switch[{idx+1}] = 0 → +3°')
+        elif self.mode == 's':
             for idx, val in enumerate(msg.data):
                 if val == 1:
                     new_angles[idx] -= 3.0
@@ -78,12 +78,12 @@ class SensorMotorKeyboardSwitchNode(Node):
     def keyboard_listener(self):
         while True:
             key = sys.stdin.readline().strip().lower()
-            if key == 'a':
-                self.mode = 'a'
-                self.get_logger().info("Switched to Mode A: (switch==0 → +3°)")
-            elif key == 'b':
-                self.mode = 'b'
-                self.get_logger().info("Switched to Mode B: (switch==1 → -3°)")
+            if key == 't':
+                self.mode = 't'
+                self.get_logger().info("Switched to Mode T: (switch==0 → +3°)")
+            elif key == 's':
+                self.mode = 's'
+                self.get_logger().info("Switched to Mode S: (switch==1 → -3°)")
             else:
                 self.get_logger().warn(f'Unknown key: {key}')
 

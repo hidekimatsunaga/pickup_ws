@@ -34,6 +34,8 @@ setup(
             'auto_motor_publisher = serial_transciever.manipulator_control.auto_motor_publisher:main',
             'thread_slack_or_taut_node = serial_transciever.manipulator_control.thread_slack_or_taut_node:main',
             'motor_angle_chokudo_publisher = serial_transciever.manipulator_control.motor_angle_chokudo_publisher:main',
+            'button_snapshot_logger = serial_transciever.button_snapshot_logger:main',
+            'integrated_control_node = serial_transciever.manipulator_control.integrated_control_node:main',
         ],
     },
 )

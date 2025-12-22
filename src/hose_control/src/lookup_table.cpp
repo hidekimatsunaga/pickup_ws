@@ -3,6 +3,7 @@
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/float32.hpp>
+#include <std_msgs/msg/int32.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <fstream>
@@ -22,6 +23,7 @@ struct DataPoint {
   double x, y, z;
   std::vector<double> motors;  // motor1〜motor9
   double motor10;
+  int marker_id;  // ★ マーカーID を追加
 };
 
 class FeedbackMotorPublisher : public rclcpp::Node {
@@ -79,6 +81,11 @@ public:
       std::bind(&FeedbackMotorPublisher::callback, this, std::placeholders::_1)
     );
 
+    sub_marker_id_ = this->create_subscription<std_msgs::msg::Int32>(
+      "/current_marker_id", 10,
+      std::bind(&FeedbackMotorPublisher::markerIdCallback, this, std::placeholders::_1)
+    ); // ★ マーカーID購読
+
     air_sub_ = create_subscription<std_msgs::msg::Float32>(
       "/sensor/pressure", 10,
       std::bind(&FeedbackMotorPublisher::airCallback, this, std::placeholders::_1));
@@ -99,6 +106,7 @@ public:
 private:
   std::vector<DataPoint> dataset_;
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_marker_id_; // ★ マーカーID購読
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_;
   rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_motor10_;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr air_sub_;
@@ -112,6 +120,7 @@ private:
   int sequence_step_;
   std::vector<std::vector<double>> sequence_data_; // シーケンスデータを保持する変数
   std::vector<double> current_motor_angles_; // 最新のモーター角度を保持する変数
+  int current_reference_marker_id_{-1}; // ★ 現在の基準マーカーID
   double air_threshold_;
   int air_threshold_hits_required_ = 3;
   int air_threshold_hits_counter_ = 0;
@@ -161,6 +170,7 @@ private:
       }
 
       dp.motor10 = std::stod(tokens[10]);
+      dp.marker_id = static_cast<int>(std::stod(tokens[11]));  // ★ マーカーIDを読み込み
 
       dataset_.push_back(dp);
     }
@@ -178,6 +188,11 @@ private:
     } else {
       air_threshold_hits_counter_ = 0;
     }
+  }
+
+  void markerIdCallback(const std_msgs::msg::Int32::SharedPtr msg)
+  {
+    current_reference_marker_id_ = msg->data;
   }
 
   void callback(const geometry_msgs::msg::PointStamped::SharedPtr msg) {
@@ -220,20 +235,29 @@ private:
     // パラメータ: ゼロ除算を避けるための微小値
     double epsilon = epsilon_;
 
-    if (dataset_.size() < static_cast<size_t>(k_neighbors)) {
-      RCLCPP_WARN(this->get_logger(), "Not enough data in CSV to perform interpolation.");
-      return;
-    }
+    if (dataset_.empty()) return;
 
-    // 1. 全てのデータ点と目標地点との距離を計算
+    // 1. 全てのデータ点と目標地点との距離を計算（★ 参照マーカーIDでフィルタリング）
     std::vector<std::pair<double, const DataPoint*>> distances;
     for (const auto& dp : dataset_) {
-    double dist = std::sqrt(
-        std::pow(dp.x - x, 2) +
-        std::pow(dp.y - y, 2) +
-        std::pow(dp.z - z, 2)
-    );
-    distances.push_back({dist, &dp});
+      // ★ 参照マーカーIDと一致するデータのみ対象
+      if (dp.marker_id != current_reference_marker_id_) {
+        continue;
+      }
+
+      double dist = std::sqrt(
+          std::pow(dp.x - x, 2) +
+          std::pow(dp.y - y, 2) +
+          std::pow(dp.z - z, 2)
+      );
+      distances.push_back({dist, &dp});
+    }
+
+    // フィルタリング後、該当データが足りないかチェック
+    if (distances.size() < static_cast<size_t>(k_neighbors)) {
+      RCLCPP_WARN(this->get_logger(), "Not enough data for marker_id=%d to perform interpolation. Available: %zu, Required: %d",
+                  current_reference_marker_id_, distances.size(), k_neighbors);
+      return;
     }
 
     // 2. 距離が近い順にソート
@@ -285,13 +309,13 @@ private:
     }
     // ★ここからマーカー発行処理を追加
     visualization_msgs::msg::MarkerArray marker_array;
-    int marker_id = 0;
+    int viz_marker_id = 0;
     for (const auto& neighbor : neighbors) {
         visualization_msgs::msg::Marker marker;
         marker.header.frame_id = msg->header.frame_id; // goal_pointと同じ座標系
         marker.header.stamp = this->get_clock()->now();
         marker.ns = "neighbor_points";
-        marker.id = marker_id++;
+        marker.id = viz_marker_id++;
         marker.type = visualization_msgs::msg::Marker::SPHERE; // 球体マーカー
         marker.action = visualization_msgs::msg::Marker::ADD;
 
@@ -334,7 +358,9 @@ private:
 
     std::stringstream ss;
     for (auto a : interpolated_motors) ss << std::fixed << std::setprecision(2) << a << " ";
-    RCLCPP_INFO(this->get_logger(), "Published interpolated motor1-9: %s, motor10: %.2f", ss.str().c_str(), interpolated_motor10);
+    // ★ マーカーIDを含めてログ出力
+    RCLCPP_INFO(this->get_logger(), "Ref marker_id: %d | Nearest marker_id: %d | Published interpolated motor1-9: %s, motor10: %.2f", 
+                current_reference_marker_id_, neighbors[0].second->marker_id, ss.str().c_str(), interpolated_motor10);
 }
 // ★追加：モーターの現在角度を受け取ったときのコールバック関数
   // ★修正：モーターの現在角度を受け取ったときのコールバック関数

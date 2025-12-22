@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/int32.hpp>
 #include <Eigen/Dense>
 #include <cmath>
 #include <std_msgs/msg/bool.hpp>
@@ -66,6 +67,7 @@ public:
           meas_.point.y = msg->poses[i].position.y;
           meas_.point.z = msg->poses[i].position.z;
           meas_received_ = true;
+          current_marker_id_ = id; // ★ マーカーIDを記録
           feedback();
           return;
         } 
@@ -75,6 +77,8 @@ public:
     pub_cmd_ = this->create_publisher<geometry_msgs::msg::PointStamped>(
       "/hose/goal_point", 10);
     pub_start_ = this->create_publisher<std_msgs::msg::Bool>("/start_grasp", 10); // ★ 追加
+    pub_marker_id_ = this->create_publisher<std_msgs::msg::Int32>(
+      "/current_marker_id", 10); // ★ マーカーID発行用
 
 
   }
@@ -89,6 +93,7 @@ private:
   bool meas_received_;
   bool goal_received_;
   bool start_sent_{false};
+  int current_marker_id_{-1}; // ★ 現在のマーカーID
   std::string current_robot_state_;
 
 
@@ -98,6 +103,7 @@ private:
   rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr sub_meas_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pub_cmd_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_start_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr pub_marker_id_; // ★ マーカーID発行用
   
 
 
@@ -152,6 +158,11 @@ private:
     cmd_.point.y = next.y();
     cmd_.point.z = next.z();
     pub_cmd_->publish(cmd_);
+
+    // ★ マーカーIDを発行
+    std_msgs::msg::Int32 marker_id_msg;
+    marker_id_msg.data = current_marker_id_;
+    pub_marker_id_->publish(marker_id_msg);
   }
 };
 
