@@ -17,7 +17,7 @@ def generate_launch_description():
         Node(
             package='hose_control',
             executable='lookup_table',
-            name='lookup_table',
+            name='feedback_motor_publisher',
             output='screen',
             parameters=[lookup_params]
         ),

@@ -1,4 +1,4 @@
 #include <vector>
 
-std::vector<float> stop_angles_ = {317.99f, 294.26f, 218.67f, 175.25f, 65.04f, 76.82f, 234.58f, 245.04f, 99.58f};
+std::vector<float> stop_angles_ = {328.97f, 318.60f, 222.63f, 181.58f, 66.80f, 72.25f, 211.64f, 248.03f, 95.71f};
 float stop_motor10_angle_ = 196.00f;

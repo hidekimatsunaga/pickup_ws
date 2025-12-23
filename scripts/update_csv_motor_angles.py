@@ -2,7 +2,7 @@
 import argparse
 import csv
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List, Optional
 
 
 def parse_set_args(set_args: List[str]) -> Dict[str, float]:
@@ -20,6 +20,21 @@ def parse_set_args(set_args: List[str]) -> Dict[str, float]:
             raise argparse.ArgumentTypeError(f"数値に変換できません: {item}")
         result[key] = fval
     return result
+
+
+def parse_csv_floats(csv_text: str, expected_len: Optional[int] = None) -> List[float]:
+    parts = [p.strip() for p in csv_text.split(',') if p.strip()]
+    if expected_len is not None and len(parts) != expected_len:
+        raise argparse.ArgumentTypeError(
+            f"カンマ区切りの値は {expected_len} 個が必要です (got {len(parts)})."
+        )
+    vals: List[float] = []
+    for p in parts:
+        try:
+            vals.append(float(p))
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"数値に変換できません: {p}")
+    return vals
 
 
 def compute_offsets_from_first_row(
@@ -100,7 +115,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "CSV のモータ角列に一括オフセットを適用します。"
-            "\n- 先頭行を基準に --new-init または --set で新しい初期値を指定すると、"
+            "\n- 先頭行を基準に --new-init（または --new-init-csv）や --set で新しい初期値を指定すると、"
             "全行に (new - old) の差分を加算して整列します。"
         )
     )
@@ -117,6 +132,14 @@ def main():
         type=float,
         help=(
             "新しい初期値（列の数と同数の値）。指定すると先頭行値との差分を全行に加算。"
+        ),
+    )
+    parser.add_argument(
+        "--new-init-csv",
+        type=str,
+        help=(
+            "カンマ区切りで初期値を指定（例: 328.97,318.60,...,160）。"
+            "スペースを含んでいても1引数で受け取れる。"
         ),
     )
     parser.add_argument(
@@ -183,6 +206,17 @@ def main():
 
     set_targets = parse_set_args(args.set)
 
+    # --new-init があれば最優先。なければ --new-init-csv を使う。
+    if args.new_init:
+        new_init_vals: Optional[List[float]] = args.new_init
+    elif args.new_init_csv:
+        try:
+            new_init_vals = parse_csv_floats(args.new_init_csv, expected_len=len(args.columns))
+        except argparse.ArgumentTypeError as e:
+            raise SystemExit(str(e))
+    else:
+        new_init_vals = None
+
     # グループごとに先頭行を基準にオフセット計算
     offsets_by_key: Dict[str | None, List[float]] = {}
     first_row_by_key: Dict[str | None, Dict[str, str]] = {}
@@ -192,7 +226,7 @@ def main():
         offsets_by_key[None] = compute_offsets_from_first_row(
             first_row=first_row,
             columns=args.columns,
-            new_init=args.new_init if args.new_init else None,
+            new_init=new_init_vals,
             set_targets=set_targets,
         )
     else:
@@ -206,7 +240,7 @@ def main():
             offsets_by_key[key] = compute_offsets_from_first_row(
                 first_row=r,
                 columns=args.columns,
-                new_init=args.new_init if args.new_init else None,
+                new_init=new_init_vals,
                 set_targets=set_targets,
             )
 
