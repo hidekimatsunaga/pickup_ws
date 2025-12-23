@@ -69,6 +69,7 @@ Visualization Manager:
         Grid: true
         Image: true
         InteractiveMarkers: true
+        MarkerArray: true
         PointCloud2: true
         PointStamped: true
         PoseArray: true
@@ -198,6 +199,18 @@ Visualization Manager:
       Show Descriptions: true
       Show Visual Aids: false
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        neighbor_points: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /hose/neighbor_points
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -244,7 +257,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 5.1809539794921875
+      Distance: 2.1173293590545654
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -259,10 +272,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7402022480964661
+      Pitch: 1.1197967529296875
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 5.770445346832275
+      Yaw: 4.225440502166748
     Saved: ~
 Window Geometry:
   Camera:

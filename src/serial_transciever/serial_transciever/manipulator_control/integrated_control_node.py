@@ -322,9 +322,15 @@ class IntegratedControlNode(Node):
             elif line_upper == "CB":
                 self._publish_chokudo_offset(-4000.0)
             elif line_upper == "CAA":
-                self._publish_chokudo_offset(+14000.0)
+                msg = Float32()
+                msg.data = 14000.0
+                self.chokudo_pub.publish(msg)
+                self.get_logger().info(f'Published to /chokudomotor/target_angle: 14000.0 deg (absolute)')
             elif line_upper == "CBB":
-                self._publish_chokudo_offset(-14000.0)
+                msg = Float32()
+                msg.data = -14000.0
+                self.chokudo_pub.publish(msg)
+                self.get_logger().info(f'Published to /chokudomotor/target_angle: -14000.0 deg (absolute)')
             # ========== Camera Swing Motor ==========
             elif line_upper == "D+":
                 self._publish_cameraswing_offset(-10.0)
