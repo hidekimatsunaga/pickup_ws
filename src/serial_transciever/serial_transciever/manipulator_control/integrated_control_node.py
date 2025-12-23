@@ -13,12 +13,74 @@ import sys
 import re
 from typing import List, Optional, Tuple
 from threading import Lock
+from pathlib import Path
 
 try:
     from pynput import keyboard
 except ImportError:
     raise ImportError("pynput not found. Install with: pip install pynput")
 
+
+def _find_headers_dir() -> Path:
+    current = Path(__file__).resolve()
+    while True:
+        headers_dir = current / 'src' / 'hose_control' / 'include' / 'hose_control'
+        if headers_dir.exists():
+            return headers_dir
+        if current.parent == current:
+            break
+        current = current.parent
+    cwd_candidate = Path.cwd() / 'src' / 'hose_control' / 'include' / 'hose_control'
+    if cwd_candidate.exists():
+        return cwd_candidate
+    return Path('/home')
+
+
+def _strip_cpp_comments(text: str) -> str:
+    # remove /* */ comments
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+    # remove //... comments
+    text = re.sub(r'//.*$', '', text, flags=re.M)
+    return text
+
+
+def _parse_flat_vector(file_path: Path, var_name: str):
+    text = file_path.read_text(encoding='utf-8')
+    text = _strip_cpp_comments(text)
+    m = re.search(rf'{re.escape(var_name)}\s*=\s*\{{(.*?)\}};', text, re.S)
+    if not m:
+        return []
+    content = m.group(1)
+    nums = re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', content)
+    return [float(n) for n in nums]
+
+
+def _parse_single_float(file_path: Path, var_name: str):
+    text = file_path.read_text(encoding='utf-8')
+    text = _strip_cpp_comments(text)
+    m = re.search(rf'{re.escape(var_name)}\s*=\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*;', text)
+    if not m:
+        return None
+    try:
+        return float(m.group(1))
+    except Exception:
+        return None
+
+
+def _parse_matrix(file_path: Path, var_name: str):
+    text = file_path.read_text(encoding='utf-8')
+    text = _strip_cpp_comments(text)
+    m = re.search(rf'{re.escape(var_name)}\s*=\s*\{{(.*?)\}};', text, re.S)
+    if not m:
+        return []
+    block = m.group(1)
+    rows = re.findall(r'\{([^}]*)\}', block)
+    result = []
+    for r in rows:
+        nums = re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', r)
+        if nums:
+            result.append([float(n) for n in nums])
+    return result
 
 
 class IntegratedControlNode(Node):
@@ -43,6 +105,11 @@ class IntegratedControlNode(Node):
         # 現在のモード（t=通常, s=逆, None=無効）
         self.sensor_mode = None
 
+        # ========== Header-based Presets ==========
+        self.key_to_angles = {}
+        self._stop_motor10 = None
+        self._load_presets_from_headers()
+
         # ========== Subscriptions ==========
         self.create_subscription(Float32MultiArray, '/motor_current_angles', self._angle_cb, 10)
         self.create_subscription(Float32, '/chokudomotor/angle', self._chokudo_cb, 10)
@@ -65,6 +132,47 @@ class IntegratedControlNode(Node):
 
         self.get_logger().info("Integrated Control Node started.")
         self._print_help()
+
+    def _load_presets_from_headers(self) -> None:
+        """Load preset angles from C++ header files."""
+        headers_dir = _find_headers_dir()
+        self.get_logger().info(f'Looking for headers in: {headers_dir}')
+
+        try:
+            init_path = headers_dir / 'motor_initial_position.hpp'
+            pickup_path = headers_dir / 'motor_pickup_position.hpp'
+            narrow_path = headers_dir / 'narrow_space_controll_position.hpp'
+
+            if init_path.exists():
+                stop_angles = _parse_flat_vector(init_path, 'stop_angles_')
+                if stop_angles:
+                    self.key_to_angles['a'] = [float(x) for x in stop_angles]
+                motor10 = _parse_single_float(init_path, 'stop_motor10_angle_')
+                if motor10 is not None:
+                    self._stop_motor10 = float(motor10)
+
+            if pickup_path.exists():
+                pickup_seq = _parse_matrix(pickup_path, 'pickup_sequence')
+                pickup_keys = ['b', 'c', 'h', 'f', 'p']
+                for k, seq in zip(pickup_keys, pickup_seq):
+                    if seq:
+                        self.key_to_angles[k] = [float(x) for x in seq]
+
+            if narrow_path.exists():
+                narrow_seq = _parse_matrix(narrow_path, 'narrow_sequence')
+                if len(narrow_seq) >= 1:
+                    self.key_to_angles['n'] = [float(x) for x in narrow_seq[0]]
+                if len(narrow_seq) >= 2:
+                    self.key_to_angles['m'] = [float(x) for x in narrow_seq[1]]
+
+            if self.key_to_angles:
+                keys_list = ', '.join(sorted(self.key_to_angles.keys()))
+                self.get_logger().info(f'Loaded header presets for keys: [{keys_list}]')
+            else:
+                self.get_logger().warn('No header values found — using fallback hard-coded presets')
+
+        except Exception as e:
+            self.get_logger().error(f'Error parsing header files: {e}')
 
     def _init_csv(self) -> None:
         """CSV初期化"""
@@ -142,10 +250,35 @@ class IntegratedControlNode(Node):
     def keyboard_listener(self) -> None:
         """キーボード入力リスナー"""
         while True:
-            line = sys.stdin.readline().strip().upper()
+            line = sys.stdin.readline().strip()
+            line_upper = line.upper()
+
+            # ========== Header-based Presets (優先) ==========
+            line_lower = line.lower()
+            if line_lower in self.key_to_angles:
+                full = self.key_to_angles[line_lower]
+                # Publish to /motor_angles: first 9 elements
+                motor_msg = Float32MultiArray()
+                motor_msg.data = [float(x) for x in full[:9]]
+                self.motor_pub.publish(motor_msg)
+                formatted = ', '.join(f'{a:.2f}' for a in motor_msg.data)
+                self.get_logger().info(f'Published preset "{line_lower}": [{formatted}]')
+                # Publish chokudo if available
+                if len(full) >= 10:
+                    chokudo_val = float(full[9])
+                elif self._stop_motor10 is not None:
+                    chokudo_val = self._stop_motor10
+                else:
+                    chokudo_val = None
+                if chokudo_val is not None:
+                    chokudo_msg = Float32()
+                    chokudo_msg.data = chokudo_val
+                    self.chokudo_pub.publish(chokudo_msg)
+                    self.get_logger().info(f'Published chokudo: {chokudo_val:.2f}')
+                continue
 
             # ========== Mode Switch (t/s) ==========
-            if line == "T":
+            if line_upper == "T":
                 if self.sensor_mode == 't':
                     self.sensor_mode = None
                     self.get_logger().info("Disabled Mode T")
@@ -153,7 +286,7 @@ class IntegratedControlNode(Node):
                     self.sensor_mode = 't'
                     self.get_logger().info("Switched to Mode T: (switch==0 → +3°)")
                 continue
-            elif line == "S":
+            elif line_upper == "S":
                 if self.sensor_mode == 's':
                     self.sensor_mode = None
                     self.get_logger().info("Disabled Mode S")
@@ -162,58 +295,58 @@ class IntegratedControlNode(Node):
                     self.get_logger().info("Switched to Mode S: (switch==1 → -3°)")
                 continue
 
-            # ========== Predefined Poses ==========
-            if line == "A":
+            # ========== Predefined Poses (fallback if not in header) ==========
+            if line_upper == "A" and 'a' not in self.key_to_angles:
                 target_angles = [280.37, 272.99, 232.03, 169.01, 56.60, 68.29, 318.43, 331.00, 106.08]
                 msg = Float32MultiArray()
                 msg.data = target_angles
                 self.motor_pub.publish(msg)
-                self.get_logger().info('Sent command: Set all motors to predefined pose "A".')
+                self.get_logger().info('Sent command: Set all motors to predefined pose "A" (fallback).')
                 continue
 
-            if line == "K":
+            if line_upper == "K" and 'k' not in self.key_to_angles:
                 target_angles = [280.28, 274.22, 232.73, 168.13, 61.96, 72.95, 415.72, 585.26, 445.34]
                 msg = Float32MultiArray()
                 msg.data = target_angles
                 self.motor_pub.publish(msg)
-                self.get_logger().info('Sent command: Set all motors to predefined pose "K".')
+                self.get_logger().info('Sent command: Set all motors to predefined pose "K" (fallback).')
                 continue
 
             # ========== Chokudo Motor (直動機構) ==========
-            if line == "CA+":
+            if line_upper == "CA+":
                 self._publish_chokudo_offset(+360.0)
-            elif line == "CA-":
+            elif line_upper == "CA-":
                 self._publish_chokudo_offset(-360.0)
-            elif line == "CA":
+            elif line_upper == "CA":
                 self._publish_chokudo_offset(+4000.0)
-            elif line == "CB":
+            elif line_upper == "CB":
                 self._publish_chokudo_offset(-4000.0)
-            elif line == "CAA":
+            elif line_upper == "CAA":
                 self._publish_chokudo_offset(+14000.0)
-            elif line == "CBB":
+            elif line_upper == "CBB":
                 self._publish_chokudo_offset(-14000.0)
             # ========== Camera Swing Motor ==========
-            elif line == "D+":
+            elif line_upper == "D+":
                 self._publish_cameraswing_offset(-10.0)
-            elif line == "D++":
+            elif line_upper == "D++":
                 self._publish_cameraswing_offset(-20.0)
-            elif line == "D+++":
+            elif line_upper == "D+++":
                 self._publish_cameraswing_offset(-30.0)
-            elif line == "D++++":
+            elif line_upper == "D++++":
                 self._publish_cameraswing_offset(-40.0)
-            elif line == "D-":
+            elif line_upper == "D-":
                 self._publish_cameraswing_offset(+10.0)
-            elif line == "D--":
+            elif line_upper == "D--":
                 self._publish_cameraswing_offset(+20.0)
-            elif line == "D---":
+            elif line_upper == "D---":
                 self._publish_cameraswing_offset(+30.0)
-            elif line == "D----":
+            elif line_upper == "D----":
                 self._publish_cameraswing_offset(+40.0)
             # ========== Motor Offset (A/B + number) ==========
-            elif len(line) >= 2 and line[0] in ['A', 'B'] and line[1:].isdigit():
-                motor_index = int(line[1:]) - 1
+            elif len(line_upper) >= 2 and line_upper[0] in ['A', 'B'] and line_upper[1:].isdigit():
+                motor_index = int(line_upper[1:]) - 1
                 if 0 <= motor_index < 9:
-                    offset = +90.0 if line[0] == 'A' else -90.0
+                    offset = +90.0 if line_upper[0] == 'A' else -90.0
                     self._send_offset_to_motor(motor_index, offset)
                 else:
                     self.get_logger().warn(f'Motor index out of range: {motor_index + 1}')
@@ -227,7 +360,7 @@ class IntegratedControlNode(Node):
                         self._send_absolute_to_motor(motor_index, target_deg)
                     else:
                         self.get_logger().warn(f'Motor index out of range: {motor_index + 1}')
-                elif line not in ('', 'Z'):  # 'Z' is snapshot via pynput
+                elif line.lower() not in ('', 'z'):  # 'z'/'Z' is snapshot via pynput
                     self.get_logger().warn(f'Invalid input format: {line}')
 
     def _log_snapshot(self) -> None:
@@ -302,15 +435,19 @@ class IntegratedControlNode(Node):
 
     def _print_help(self) -> None:
         """Print help message."""
-        help_text = """
+        header_keys = ', '.join(sorted(self.key_to_angles.keys())) if self.key_to_angles else 'none'
+        help_text = f"""
 ========== Integrated Control Node Help ==========
+[Header Presets (優先)]
+  {header_keys}     : Presets loaded from C++ headers
+
 [Mode Switch]
   T           : Sensor Mode T (switch==0 → +3°)
   S           : Sensor Mode S (switch==1 → -3°)
 
-[Predefined Poses]
-  A           : Set all motors to pose A
-  K           : Set all motors to pose K
+[Predefined Poses (fallback)]
+  A           : Set all motors to pose A (if not in header)
+  K           : Set all motors to pose K (if not in header)
 
 [Motor Control (Relative)]
   A1-A9       : +90° for motor 1-9

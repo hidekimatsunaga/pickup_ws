@@ -240,8 +240,8 @@ private:
     // 1. 全てのデータ点と目標地点との距離を計算（★ 参照マーカーIDでフィルタリング）
     std::vector<std::pair<double, const DataPoint*>> distances;
     for (const auto& dp : dataset_) {
-      // ★ 参照マーカーIDと一致するデータのみ対象
-      if (dp.marker_id != current_reference_marker_id_) {
+      // ★ 参照マーカーIDと一致するデータのみ対象（-1の場合は全データを対象）
+      if (current_reference_marker_id_ != -1 && dp.marker_id != current_reference_marker_id_) {
         continue;
       }
 
@@ -258,6 +258,12 @@ private:
       RCLCPP_WARN(this->get_logger(), "Not enough data for marker_id=%d to perform interpolation. Available: %zu, Required: %d",
                   current_reference_marker_id_, distances.size(), k_neighbors);
       return;
+    }
+    
+    // ★ ArUcoマーカーが検出できていない場合（marker_id=-1）の警告
+    if (current_reference_marker_id_ == -1) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                           "ArUco marker not detected (marker_id=-1). Using all CSV data for nearest neighbor search.");
     }
 
     // 2. 距離が近い順にソート
