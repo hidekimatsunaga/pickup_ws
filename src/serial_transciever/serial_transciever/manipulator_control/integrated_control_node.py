@@ -164,6 +164,8 @@ class IntegratedControlNode(Node):
                     self.key_to_angles['n'] = [float(x) for x in narrow_seq[0]]
                 if len(narrow_seq) >= 2:
                     self.key_to_angles['m'] = [float(x) for x in narrow_seq[1]]
+                if len(narrow_seq) >= 3:
+                    self.key_to_angles['l'] = [float(x) for x in narrow_seq[2]]    
 
             if self.key_to_angles:
                 keys_list = ', '.join(sorted(self.key_to_angles.keys()))
@@ -323,9 +325,9 @@ class IntegratedControlNode(Node):
                 self._publish_chokudo_offset(-4000.0)
             elif line_upper == "CAA":
                 msg = Float32()
-                msg.data = 14000.0
+                msg.data = 168.0
                 self.chokudo_pub.publish(msg)
-                self.get_logger().info(f'Published to /chokudomotor/target_angle: 14000.0 deg (absolute)')
+                self.get_logger().info(f'Published to /chokudomotor/target_angle: 168.0 deg (absolute)')
             elif line_upper == "CBB":
                 msg = Float32()
                 msg.data = -14000.0
