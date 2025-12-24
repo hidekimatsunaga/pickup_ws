@@ -33,10 +33,28 @@ ament_target_dependencies(object_chaser_node_differential
   tf2_geometry_msgs
 )
 
+# object_camera_controller_node (カメラ制御のみ)
+add_executable(object_camera_controller_node src/object_camera_controller_node.cpp)
+ament_target_dependencies(object_camera_controller_node
+  rclcpp
+  geometry_msgs
+  std_msgs
+)
+
+# object_motion_controller_node (移動制御のみ)
+add_executable(object_motion_controller_node src/object_motion_controller_node.cpp)
+ament_target_dependencies(object_motion_controller_node
+  rclcpp
+  geometry_msgs
+  std_msgs
+)
+
 # Install executables
 install(TARGETS
   object_chaser_node
   object_chaser_node_differential
+  object_camera_controller_node
+  object_motion_controller_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

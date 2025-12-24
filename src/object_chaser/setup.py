@@ -21,6 +21,9 @@ setup(
     entry_points={
         'console_scripts': [
             'object_chaser_node = object_chaser.object_chaser_node:main',
+            'cameraswing_calib_node = object_chaser.cameraswing_calib_node:main',
+            'object_chaser_node_differential = object_chaser.object_chaser_node_differential:main',
+            'object_chaser_simple_camera_node = object_chaser.object_chaser_simple_camera_node:main',
         ],
     },
 )

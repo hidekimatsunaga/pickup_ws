@@ -13,7 +13,7 @@ class DualMotorSerialNode(Node):
         self.pressure_pub = self.create_publisher(Float32, '/sensor/pressure', 10)
 
         # 指令値保持
-        self.angle1_cmd = 268
+        self.angle1_cmd = 160
         self.angle2_cmd = 67
         self.prev_angle1_cmd = None
         self.prev_angle2_cmd = None
