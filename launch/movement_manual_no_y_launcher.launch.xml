@@ -1,7 +1,7 @@
 <launch>
     <!-- teleop_twist_joy の起動 -->
     <include file="$(find-pkg-share teleop_twist_joy)/launch/teleop-launch.py">
-        <arg name="config_filepath" value="/home/matsunaga-h/pickup_ws/config/f310.config.yaml"/>
+        <arg name="config_filepath" value="/home/matsunaga-h/pickup_ws/config/f310.no_y.config.yaml"/>
         <arg name="joy_vel" value="cmd_vel"/> 
     </include>
 
