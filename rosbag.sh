@@ -4,6 +4,7 @@ ros2 bag record \
     /camera/camera/color/image_raw \
     /camera/camera/aligned_depth_to_color/image_raw \
     /camera/camera/aligned_depth_to_color/camera_info \
+    /camera/camera/color/camera_info \
     /aruco/markers \
     /aruco/poses \
     /cameraswingmotor/angle \
@@ -16,17 +17,12 @@ ros2 bag record \
     /initialpose \
     /motor_angles \
     /motor_current_angles \
-    /parameter_events \
-    /rosout \
     /sensor/pressure \
     /hose/goal_point \
     /hose/neighbor_points \
     /switch \
-    /start_grasp \
-    /tf \
     /tf_static \
     /relay_switch \
-    /sensor/pressure \
     /start_grasp \
     /vacuum_flag \
     /cmd_vel \
