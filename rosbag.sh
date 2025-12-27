@@ -1,7 +1,9 @@
 #!/bin/bash
 
 ros2 bag record \
-    /aruco/image \
+    /camera/camera/color/image_raw \
+    /camera/camera/aligned_depth_to_color/image_raw \
+    /camera/camera/aligned_depth_to_color/camera_info \
     /aruco/markers \
     /aruco/poses \
     /cameraswingmotor/angle \
