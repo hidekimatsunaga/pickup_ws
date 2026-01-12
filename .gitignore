@@ -23,6 +23,7 @@ src/**/bags/**
 metadata.yaml
 *.bag
 src/pcc_test/bags/
+videos/
 
 # The large bag file record_20251030_072025_0.db3.zstd was removed from history
 # Keep the directory ignored to avoid re-adding large recordings
