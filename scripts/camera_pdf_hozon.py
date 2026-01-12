@@ -19,7 +19,7 @@ class ImagePdfSaver(Node):
         super().__init__("image_pdf_saver")
 
         self.declare_parameter("image_topic", "/camera/camera/color/image_raw")
-        self.declare_parameter("output_dir", os.getcwd())
+        self.declare_parameter("output_dir", "/home/matsunaga-h/pickup_ws/pdfs")
         self.declare_parameter("window_name", "ROS Image (press 's' to save PDF, 'q' to quit)")
 
         self.topic = self.get_parameter("image_topic").get_parameter_value().string_value
