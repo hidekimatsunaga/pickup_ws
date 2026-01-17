@@ -121,7 +121,7 @@ class MySubscription(Node):
         )
         self.pub = self.create_publisher(TwistWithCovarianceStamped, "/localization/twist_estimator/twist_with_covariance", const.QUEUE_SIZE)
         self.pub2 = self.create_publisher(Odometry, "odom", const.QUEUE_SIZE)
-        # self.pub = self.create_publisher(DriveMotor, "drive_odom", const.QUEUE_SIZE)
+        self.pub_drive_odom = self.create_publisher(DriveMotor, "drive_odom", const.QUEUE_SIZE)
         self.ca = ClientAsync("sub")
 
     def __del__(self):
@@ -163,6 +163,12 @@ class MySubscription(Node):
                 delta = 0
             dt2 = dt1
             delta = delta / 1e9
+            
+            # DriveMotorメッセージを配信
+            drive_odom_msg = DriveMotor()
+            drive_odom_msg.header.stamp = self.get_clock().now().to_msg()
+            drive_odom_msg.header.frame_id = "base_link"
+            
             for axis in range(axis_num[0]):
                 vR = math.pi*2*0.1125*(-res.data[1])/(60*30) #m/s
                 vL = math.pi*2*0.1125*res.data[0]/(60*30) #m/s
@@ -199,6 +205,17 @@ class MySubscription(Node):
                         delta,x,y#res.data[0], res.data[1]
                     )
                 )  # [0]:1軸目の検出速度、[1]:2軸目の検出速度
+            
+            # 3軸分の検出速度を変換してDriveMotorメッセージに格納
+            # res.data[0]: 2軸目(left), res.data[1]: 3軸目(right), res.data[2]: 1軸目(back)の検出速度 [r/min]
+            wheeles_size = 0.1125
+            if len(res.data) >= 3:
+                # r/min から m/s に変換
+                drive_odom_msg.vel1 = math.pi * 2 * wheeles_size * (-res.data[1]) / (60 * 30)  # right
+                drive_odom_msg.vel2 = math.pi * 2 * wheeles_size * res.data[0] / (60 * 30)    # left
+                drive_odom_msg.vel3 = math.pi * 2 * wheeles_size * res.data[2] / (60 * 30)    # back
+                self.pub_drive_odom.publish(drive_odom_msg)
+            
             # odom = Odometry()
             # odom.header.stamp = twist_stamp.header.stamp
             # odom.header.frame_id = "odom"
@@ -517,24 +534,24 @@ class MyPublisher(Node):
             pass
 
 
-# class MyPublisherPolling(Node):
-#     def __init__(self):
-#         super().__init__("my_pub_polling")
-#         self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
-#         self.timer = self.create_timer(0.1, self.timer_callback)
+class MyPublisherPolling(Node):
+    def __init__(self):
+        super().__init__("my_pub_polling")
+        self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
+        self.timer = self.create_timer(0.1, self.timer_callback)
 
-#     # 一定周期で実行する処理
-#     def timer_callback(self):
-#         global msg
+    # 一定周期で実行する処理
+    def timer_callback(self):
+        global msg
 
-#         if _state_driver == 1:
-#             return
-#         if _is_timer_active:
-#             msg.slave_id = 10  # スレーブID指定(ID Shareモードのときはglobal_idとみなされる)
-#             msg.func_code = 0  # 0:Read
-#             msg.read_addr = 0x000E  # 読み出すアドレスの起点
-#             msg.read_num = 3  # 各軸1個ずつ
-#             self.pub.publish(msg)  # 配信する
+        if _state_driver == 1:
+            return
+        if _is_timer_active:
+            msg.slave_id = 10  # スレーブID指定(ID Shareモードのときはglobal_idとみなされる)
+            msg.func_code = 0  # 0:Read
+            msg.read_addr = 0x000E  # 読み出すアドレスの起点
+            msg.read_num = 3  # 各軸1個ずつ
+            self.pub.publish(msg)  # 配信する
 
 
 def main(args=None):
@@ -542,12 +559,12 @@ def main(args=None):
     # rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     try:
         pub1 = MyPublisher()
-        # pub2 = MyPublisherPolling()
+        pub2 = MyPublisherPolling()
         sub_2 = Mysubscription2()
         sub = MySubscription()
         executor = MultiThreadedExecutor()
         executor.add_node(pub1)
-        # executor.add_node(pub2)
+        executor.add_node(pub2)
         executor.add_node(sub_2)
         executor.add_node(sub)
         executor.spin()
@@ -576,7 +593,7 @@ def main(args=None):
             pub1.seq = 4
             time.sleep(0.5)
             pub1.destroy_node()
-            # pub2.destroy_node()
+            pub2.destroy_node()
             sub.destroy_node()
             sub_2.destroy_node()
             rclpy.shutdown()

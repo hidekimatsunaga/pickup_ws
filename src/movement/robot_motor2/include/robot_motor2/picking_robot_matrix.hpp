@@ -67,7 +67,7 @@ void PickingRobotMatrix::calcRobotVelocity(double &vx, double &vy, double &vth, 
 
     vx = V(0, 0);
     vy = V(1, 0);
-    vth = -V(2, 0);
+    vth = V(2, 0);  // 符号を統一（逆運動学と同じ符号）
 }
 
 void PickingRobotMatrix::calcWheelVelAng(const double &vx, const double &vy, const double &vth, double *drive_vel, float *steer_phi)

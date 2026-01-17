@@ -24,6 +24,7 @@ public:
     double vx, vy, vth;
     rclcpp::Time current_time, last_time;
     std::string frame_id, child_frame_id;
+    bool is_first_callback;  // 初回コールバックのフラグ
 
     // Publishers
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub;

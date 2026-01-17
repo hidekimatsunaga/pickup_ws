@@ -23,5 +23,5 @@
     <node pkg="dynamixel_sdk_examples" exec="read_write_node" name="read_write_node" output="screen"/>
     <node pkg="robot_motor2" exec="steer_motor_node" name="steer_motor_node" output="screen"/>
     <node pkg="robot_motor2" exec="cmd_vel_to_motor_node" name="cmd_vel_to_motor_node" output="screen"/>
-    <node pkg="robot_motor2" exec="robot_odom_node" name="robot_odom_node" output="screen"/>
+    <!-- <node pkg="robot_motor2" exec="robot_odom_node" name="robot_odom_node" output="screen"/> -->
 </launch>
