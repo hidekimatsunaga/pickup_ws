@@ -30,8 +30,10 @@ class DiffTurnGoTurnLateral1m(Node):
         self.declare_parameter('v', 0.25)         # [m/s]
 
         self.declare_parameter('turn_angle_deg', 90.0)  # [deg]
-        self.declare_parameter('turn_wz', 0.8)          # [rad/s]
+        self.declare_parameter('turn_wz', 0.9)          # [rad/s]
         self.declare_parameter('turn_sign', 1.0)        # +1: left, -1: right
+        # Open-loop calibration knob: scale computed turn duration (>=1.0 means "turn a bit more")
+        self.declare_parameter('turn_time_scale', 1.2)
         self.declare_parameter('settle_time', 0.15)     # [s] stop between stages
         self.declare_parameter('max_total_time', 30.0)  # [s] safety timeout
 
@@ -41,6 +43,7 @@ class DiffTurnGoTurnLateral1m(Node):
         self.turn_angle_rad = math.radians(float(self.get_parameter('turn_angle_deg').value))
         self.turn_wz = float(self.get_parameter('turn_wz').value)
         self.turn_sign = float(self.get_parameter('turn_sign').value)
+        self.turn_time_scale = float(self.get_parameter('turn_time_scale').value)
         self.settle_time = float(self.get_parameter('settle_time').value)
         self.max_total_time = float(self.get_parameter('max_total_time').value)
 
@@ -91,10 +94,15 @@ class DiffTurnGoTurnLateral1m(Node):
             self.enabled = False
             self.state = "IDLE"
             return
+        if self.turn_time_scale <= 0.0:
+            self.get_logger().error("Parameter 'turn_time_scale' must be > 0.")
+            self.enabled = False
+            self.state = "IDLE"
+            return
         sign = 1.0 if self.turn_sign >= 0.0 else -1.0
         angle = self.turn_angle_rad * sign
 
-        self.turn1_time_s = abs(angle) / abs(self.turn_wz)
+        self.turn1_time_s = (abs(angle) / abs(self.turn_wz)) * self.turn_time_scale
         self.turn2_time_s = self.turn1_time_s
         self.go_time_s = abs(self.distance) / abs(self.v)
 
@@ -106,7 +114,7 @@ class DiffTurnGoTurnLateral1m(Node):
         self.start_stage("TURN1")
 
         self.get_logger().info(
-            f"Start open-loop: turn={math.degrees(angle):.1f}deg @ {self.wz1:.2f}rad/s ({self.turn1_time_s:.2f}s), "
+            f"Start open-loop: turn={math.degrees(angle):.1f}deg @ {self.wz1:.2f}rad/s ({self.turn1_time_s:.2f}s, scale={self.turn_time_scale:.2f}), "
             f"go={self.distance:.2f}m @ {self.vx:.2f}m/s ({self.go_time_s:.2f}s)"
         )
 

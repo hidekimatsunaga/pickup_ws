@@ -31,7 +31,9 @@ class HolonomicStrafe1m(Node):
         super().__init__('holonomic_strafe_1m')
 
         self.declare_parameter('cmd_vel_topic', '/cmd_vel')
-        self.declare_parameter('odom_topic', '/odom')
+        # In this workspace, robot odometry is typically published as /wheel_odom
+        # (from robot_motor2/robot_odom_node). Override with --ros-args -p odom_topic:=/odom if needed.
+        self.declare_parameter('odom_topic', '/wheel_odom')
         self.declare_parameter('enable_topic', '/move_test/enable')
 
         self.declare_parameter('distance_y', 1.0)   # [m] lateral move
@@ -58,12 +60,19 @@ class HolonomicStrafe1m(Node):
         self.t0 = None
         self.duration = None
 
-        self.sub_odom = self.create_subscription(Odometry, self.get_parameter('odom_topic').value, self.cb_odom, 20)
-        self.sub_en = self.create_subscription(Bool, self.get_parameter('enable_topic').value, self.cb_enable, 10)
-        self.pub = self.create_publisher(Twist, self.get_parameter('cmd_vel_topic').value, 10)
+        odom_topic = str(self.get_parameter('odom_topic').value)
+        enable_topic = str(self.get_parameter('enable_topic').value)
+        cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
+
+        self.sub_odom = self.create_subscription(Odometry, odom_topic, self.cb_odom, 20)
+        self.sub_en = self.create_subscription(Bool, enable_topic, self.cb_enable, 10)
+        self.pub = self.create_publisher(Twist, cmd_vel_topic, 10)
 
         self.timer = self.create_timer(0.02, self.on_timer)  # 50 Hz
-        self.get_logger().info("HolonomicStrafe1m ready. Publish /move_test/enable true to start.")
+        self.get_logger().info(
+            f"HolonomicStrafe1m ready. cmd_vel={cmd_vel_topic} odom={odom_topic} enable={enable_topic}"
+        )
+        self.get_logger().info("Publish enable=true to start.")
 
     def cb_odom(self, msg: Odometry):
         self.odom = msg
