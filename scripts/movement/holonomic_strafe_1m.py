@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import math
+import time
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
@@ -38,18 +39,24 @@ class HolonomicStrafe1m(Node):
         self.declare_parameter('k_yaw', 2.0)        # yaw hold gain
         self.declare_parameter('wz_max', 1.0)       # [rad/s]
         self.declare_parameter('pos_tol', 0.02)     # [m]
+        # If odom is unavailable, optionally run open-loop using time
+        self.declare_parameter('open_loop_on_no_odom', True)
 
         self.distance_y = float(self.get_parameter('distance_y').value)
         self.vy = float(self.get_parameter('vy').value)
         self.k_yaw = float(self.get_parameter('k_yaw').value)
         self.wz_max = float(self.get_parameter('wz_max').value)
         self.pos_tol = float(self.get_parameter('pos_tol').value)
+        self.open_loop_on_no_odom = bool(self.get_parameter('open_loop_on_no_odom').value)
 
         self.enabled = False
         self.odom = None
         self.yaw0 = None
         self.x0 = None
         self.y0 = None
+        # Open-loop time mode state
+        self.t0 = None
+        self.duration = None
 
         self.sub_odom = self.create_subscription(Odometry, self.get_parameter('odom_topic').value, self.cb_odom, 20)
         self.sub_en = self.create_subscription(Bool, self.get_parameter('enable_topic').value, self.cb_enable, 10)
@@ -64,9 +71,27 @@ class HolonomicStrafe1m(Node):
     def cb_enable(self, msg: Bool):
         self.enabled = bool(msg.data)
         if self.enabled:
-            self.capture_start()
+            # If odom is present, capture start as usual.
+            if self.odom is not None:
+                self.capture_start()
+            else:
+                # Fallback to open-loop time-based move if enabled.
+                if self.open_loop_on_no_odom:
+                    # duration = distance / speed
+                    vy_eff = max(1e-6, abs(self.vy))
+                    self.duration = abs(self.distance_y) / vy_eff
+                    self.t0 = time.monotonic()
+                    self.get_logger().warn(
+                        f"No /odom; using open-loop time mode for {self.duration:.2f}s to strafe {self.distance_y:.2f}m"
+                    )
+                else:
+                    self.get_logger().warn("No /odom; cannot start without open-loop fallback enabled.")
+                    self.enabled = False
         else:
             self.publish_stop()
+            # Clear open-loop state
+            self.t0 = None
+            self.duration = None
 
     def capture_start(self):
         if self.odom is None:
@@ -85,6 +110,25 @@ class HolonomicStrafe1m(Node):
     def on_timer(self):
         if not self.enabled:
             return
+        # Open-loop time-based mode (no odom)
+        if self.t0 is not None and self.duration is not None:
+            elapsed = time.monotonic() - self.t0
+            if elapsed >= self.duration:
+                self.publish_stop()
+                self.enabled = False
+                self.get_logger().info("Done (open-loop time strafe).")
+                # Clear open-loop state
+                self.t0 = None
+                self.duration = None
+                return
+
+            cmd = Twist()
+            cmd.linear.y = self.vy if self.distance_y > 0 else -self.vy
+            # Without odometry orientation, we do not apply yaw correction
+            cmd.angular.z = 0.0
+            self.pub.publish(cmd)
+            return
+
         if self.odom is None or self.x0 is None:
             return
 

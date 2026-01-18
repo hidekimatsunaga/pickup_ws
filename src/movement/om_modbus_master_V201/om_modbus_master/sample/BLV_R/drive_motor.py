@@ -22,7 +22,7 @@ import sys
 import threading
 
 # sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-sys.path.append("/home/matsunaga-h/clean_ws/src/om_modbus_master_V201/om_modbus_master/sample")
+sys.path.append("/home/matsunaga-h/pickup_ws/src/movement/om_modbus_master_V201/om_modbus_master/sample")
 from rclpy.node import Node
 import time
 import datetime
@@ -65,6 +65,10 @@ dt2=0
 dt3=0
 v_b=0
 lpr=1
+# 直近の指令受信時刻（モノトニック）
+last_cmd_time = None
+# 指令タイムアウト[s]
+CMD_TIMEOUT_SEC = 0.3
 # スレッドセーフなロック機構
 motor_speed_lock = threading.Lock()
 # 定数
@@ -78,8 +82,12 @@ class Mysubscription2(Node):
         )
         self.ca = ClientAsync("sub_2")
     
-    def __del__(self):
-        self.ca.destroy_node()
+    def destroy_client(self):
+        try:
+            if self.ca is not None:
+                self.ca.destroy_node()
+        except Exception:
+            pass
         
     def drive_callback(self, res):
         global lpr
@@ -108,6 +116,8 @@ class Mysubscription2(Node):
             right = 60 * v_r *30
             left = 60 * v_l  *30
             back = 60 * v_b *30
+        global last_cmd_time
+        last_cmd_time = time.monotonic()
         self.get_logger().info("after calucurate right left %f" % (time.time()))
 
 class MySubscription(Node):
@@ -124,8 +134,12 @@ class MySubscription(Node):
         self.pub_drive_odom = self.create_publisher(DriveMotor, "drive_odom", const.QUEUE_SIZE)
         self.ca = ClientAsync("sub")
 
-    def __del__(self):
-        self.ca.destroy_node()
+    def destroy_client(self):
+        try:
+            if self.ca is not None:
+                self.ca.destroy_node()
+        except Exception:
+            pass
 
     def response_callback(self, res):
         global v
@@ -135,6 +149,12 @@ class MySubscription(Node):
         global th
         global dt1
         global dt2
+        
+        # Debug: func_code and res.data to diagnose why drive_odom is zero
+        self.get_logger().info(
+            f"response_callback: func_code={res.func_code}, data_len={len(res.data)}, data={res.data[:3] if len(res.data) >= 3 else res.data}"
+        )
+        
         pose = Pose()
         twist_stamp = TwistWithCovarianceStamped()
         twist_stamp.header.stamp = self.get_clock().now().to_msg()
@@ -154,8 +174,8 @@ class MySubscription(Node):
             print("Exception")
             return
         # ID Shareモードのとき
-        #if True:
-        if(res.func_code == 0x03):
+        # Read応答のファンクションコードは環境により 0 or 0x03 として返ることがあるため両方許容
+        if (res.func_code == 0) or (res.func_code == 0x03):
             axis_num = self.ca.get_parameters_from_another_node("om_node", ["axis_num"])
             if dt2 != 0:
                 delta = dt1-dt2
@@ -214,6 +234,10 @@ class MySubscription(Node):
                 drive_odom_msg.vel1 = math.pi * 2 * wheeles_size * (-res.data[1]) / (60 * 30)  # right
                 drive_odom_msg.vel2 = math.pi * 2 * wheeles_size * res.data[0] / (60 * 30)    # left
                 drive_odom_msg.vel3 = math.pi * 2 * wheeles_size * res.data[2] / (60 * 30)    # back
+                # パブリッシュ前に可視化用のログを出す
+                self.get_logger().info(
+                    f"publish drive_odom vel=[{drive_odom_msg.vel1:.4f}, {drive_odom_msg.vel2:.4f}, {drive_odom_msg.vel3:.4f}]"
+                )
                 self.pub_drive_odom.publish(drive_odom_msg)
             
             # odom = Odometry()
@@ -253,8 +277,17 @@ class MyPublisher(Node):
         self.timer = self.create_timer(0.01, self.timer_callback)  # 20ms → 10ms に短縮
         self.ca = ClientAsync("pub")
 
-        def __del__(self):
-            self.ca.destroy_node()
+    def destroy_client(self):
+        try:
+            if self.timer is not None:
+                self.destroy_timer(self.timer)
+        except Exception:
+            pass
+        try:
+            if self.ca is not None:
+                self.ca.destroy_node()
+        except Exception:
+            pass
 
     def timer_callback(self):
         # self.get_logger().info("query is published")
@@ -498,6 +531,11 @@ class MyPublisher(Node):
             left_val = left
             right_val = right
             back_val = back
+        # 直近の指令が古い場合は停止（指令残留対策）
+        if last_cmd_time is None or (time.monotonic() - last_cmd_time) > CMD_TIMEOUT_SEC:
+            left_val = 0
+            right_val = 0
+            back_val = 0
         # 1軸目のデータ
         msg.data[0] = 16  # DDO運転方式 16:連続運転(速度制御)
         msg.data[1] = 0  # DDO運転位置(初期単位：1step = 0.01deg)連続運転(速度制御)なので無関係
@@ -531,14 +569,14 @@ class MyPublisher(Node):
     def wait(self, t):
         time.sleep(t)
         while _state_driver == 1:
-            pass
+            time.sleep(0.001)
 
 
 class MyPublisherPolling(Node):
     def __init__(self):
         super().__init__("my_pub_polling")
         self.pub = self.create_publisher(Query, "om_query0", const.QUEUE_SIZE)
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        self.timer = self.create_timer(0.08, self.timer_callback)  # 100ms → 80ms に短縮（控えめ）
 
     # 一定周期で実行する処理
     def timer_callback(self):
@@ -546,17 +584,20 @@ class MyPublisherPolling(Node):
 
         if _state_driver == 1:
             return
-        if _is_timer_active:
-            msg.slave_id = 10  # スレーブID指定(ID Shareモードのときはglobal_idとみなされる)
-            msg.func_code = 0  # 0:Read
-            msg.read_addr = 0x000E  # 読み出すアドレスの起点
-            msg.read_num = 3  # 各軸1個ずつ
-            self.pub.publish(msg)  # 配信する
+        # Always poll for detected velocities regardless of _is_timer_active
+        # 到底して常にセンサーデータをポーリング
+        msg.slave_id = 10  # スレーブID指定(ID Shareモードのときはglobal_idとみなされる)
+        msg.func_code = 0  # 0:Read
+        msg.read_addr = 0x000E  # 読み出すアドレスの起点
+        msg.read_num = 3  # 各軸1個ずつ
+        self.pub.publish(msg)  # 配信する
 
 
 def main(args=None):
     rclpy.init(args=args)
     # rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
+    i = True  # Initialize before try block to avoid UnboundLocalError in finally
+    executor = None
     try:
         pub1 = MyPublisher()
         pub2 = MyPublisherPolling()
@@ -576,7 +617,6 @@ def main(args=None):
     #     sub.destroy_node()
     #     sub_2.destroy_node()
     #     rclpy.shutdown()
-        i=True
     except KeyboardInterrupt:
         # pub1.get_logger().info("Keyboard Interrupt")
         # pub1.seq = 4
@@ -586,17 +626,44 @@ def main(args=None):
         # sub.destroy_node()
         # sub_2.destroy_node()
         # rclpy.shutdown()
-        pub1.get_logger().info("python fin.")
-        i=False
+        if 'pub1' in locals():
+            pub1.get_logger().info("python fin.")
+        i = False
     finally:
         if i:
-            pub1.seq = 4
+            try:
+                pub1.seq = 4
+            except Exception:
+                pass
+            time.sleep(1.0)
+            try:
+                pub1.destroy_client()
+            except Exception:
+                pass
+            try:
+                pub2.destroy_node()
+            except Exception:
+                pass
+            try:
+                sub.destroy_client()
+                sub.destroy_node()
+            except Exception:
+                pass
+            try:
+                sub_2.destroy_client()
+                sub_2.destroy_node()
+            except Exception:
+                pass
+            try:
+                if executor is not None:
+                    executor.shutdown()
+            except Exception:
+                pass
             time.sleep(0.5)
-            pub1.destroy_node()
-            pub2.destroy_node()
-            sub.destroy_node()
-            sub_2.destroy_node()
-            rclpy.shutdown()
+            try:
+                rclpy.shutdown()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
