@@ -36,8 +36,8 @@ class HolonomicStrafe1m(Node):
         self.declare_parameter('odom_topic', '/wheel_odom')
         self.declare_parameter('enable_topic', '/move_test/enable')
 
-        self.declare_parameter('distance_y', 1.0)   # [m] lateral move
-        self.declare_parameter('vy', 0.25)          # [m/s]
+        self.declare_parameter('distance_y', 2.0)   # [m] lateral move
+        self.declare_parameter('vy', 0.5)          # [m/s]
         self.declare_parameter('k_yaw', 2.0)        # yaw hold gain
         self.declare_parameter('wz_max', 1.0)       # [rad/s]
         self.declare_parameter('pos_tol', 0.02)     # [m]
