@@ -45,7 +45,7 @@ class SimParams:
 
     # Time
     dt: float = 0.03
-    n_steps: int = 280
+    n_steps: int = 60
 
     # Leader input: tip bend angle (signed)
     theta_amp: float = 1.3  # [rad]  (bigger -> larger swing and curvature)
@@ -56,6 +56,10 @@ class SimParams:
     time_smoothing: float = 0.45  # 0..1, larger -> more responsive
     space_smoothing: float = 0.12  # 0..1, smaller -> allows sharper bends
 
+    # Forward motion (entering from off-screen)
+    forward_speed: float = 0.25  # [length/s], speed of forward motion
+    forward_direction: tuple[float, float] = (1.0, 0.0)  # direction vector (will be normalized)
+
     # Rendering
     fps: int = 20
     gif_name: str = "leader_follower_curvature_wave.gif"
@@ -63,7 +67,7 @@ class SimParams:
     trail_len: int = 140
 
     # Slide-friendly visuals
-    figsize: tuple[float, float] = (7.6, 5.6)
+    figsize: tuple[float, float] = (5.5, 4.5)
     use_japanese_labels: bool = True
     save_keyframe_png: bool = True
     keyframe_index: int = 0  # overwritten to mid-step if 0
@@ -162,6 +166,10 @@ def simulate(p: SimParams) -> dict[str, np.ndarray]:
     # Smoothing state
     theta_prev = np.zeros(n, dtype=float)
 
+    # Forward motion offset
+    fwd_dir = np.array(p.forward_direction, dtype=float)
+    fwd_dir = fwd_dir / (np.linalg.norm(fwd_dir) + 1e-9)
+
     # Markers (4 points -> 3 sections)
     marker_ids = np.array(
         [
@@ -199,6 +207,12 @@ def simulate(p: SimParams) -> dict[str, np.ndarray]:
         theta_prev = theta_new
         x, y = theta_to_backbone(theta_new, p)
 
+        # Apply forward motion offset
+        t_current = step * p.dt
+        offset = p.forward_speed * t_current * fwd_dir
+        x = x + offset[0]
+        y = y + offset[1]
+
         thetas[step] = theta_new
         xs[step] = x
         ys[step] = y
@@ -222,7 +236,7 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
     _set_slide_style(p.use_japanese_labels)
     fig, ax = plt.subplots(figsize=p.figsize, constrained_layout=True)
     ax.set_aspect("equal", adjustable="box")
-    ax.grid(True, alpha=0.18)
+    ax.grid(False)
     if p.use_japanese_labels:
         ax.set_title("先端\u2192根元へ曲げが伝播するイメージ")
         ax.set_xlabel("x")
@@ -234,12 +248,22 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
 
     all_x = xs.reshape(-1)
     all_y = ys.reshape(-1)
-    pad = 0.18
-    ax.set_xlim(float(all_x.min() - pad), float(all_x.max() + pad))
-    ax.set_ylim(float(all_y.min() - pad), float(all_y.max() + pad))
+    pad = 0.3
+    # Set fixed view to show entry from off-screen
+    # Initial position (step 0) should be partially off-screen on the left
+    x_start = float(xs[0].min())
+    x_end = float(xs[-1].max())
+    y_min = float(all_y.min() - pad)
+    y_max = float(all_y.max() + pad)
+    
+    # Extend left side to show initial off-screen position
+    x_min = x_start - 0.3
+    x_max = x_end + 0.2
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
 
     (body_line,) = ax.plot([], [], color="#2ca02c", label=("マニピュレータ" if p.use_japanese_labels else "Manipulator"))
-    (base_dot,) = ax.plot([0.0], [0.0], marker="o", color="#111111", ms=6, label=("根元" if p.use_japanese_labels else "Base"))
+    (base_dot,) = ax.plot([], [], marker="o", color="#111111", ms=6, label=("根元" if p.use_japanese_labels else "Base"))
 
     palette = ["#111111", "#9467bd", "#ff7f0e", "#1f77b4", "#8c564b"]
     marker_colors = palette[: len(marker_ids)]
@@ -293,6 +317,8 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
 
     def update(i: int):
         body_line.set_data(xs[i], ys[i])
+        # Update base position (it moves forward)
+        base_dot.set_data([xs[i, 0]], [ys[i, 0]])
 
         trail_start = max(0, i + 1 - p.trail_len)
         for k in range(len(marker_ids)):

@@ -49,6 +49,7 @@ class CmdVelPathVisualizer(Node):
         self.declare_parameter('frame_id', 'odom')
         self.declare_parameter('path_topic', '/cmd_vel/path')
         self.declare_parameter('marker_topic', '/cmd_vel/path_marker')
+        self.declare_parameter('heading_marker_topic', '/cmd_vel/heading_marker')
 
         self.declare_parameter('publish_hz', 10.0)
 
@@ -65,12 +66,19 @@ class CmdVelPathVisualizer(Node):
         self.declare_parameter('color_g', 0.9)
         self.declare_parameter('color_b', 0.2)
         self.declare_parameter('color_a', 0.9)
+        self.declare_parameter('heading_length', 0.25)
+        self.declare_parameter('heading_width', 0.05)
+        self.declare_parameter('heading_r', 0.9)
+        self.declare_parameter('heading_g', 0.2)
+        self.declare_parameter('heading_b', 0.1)
+        self.declare_parameter('heading_a', 0.9)
 
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self.enable_topic = str(self.get_parameter('enable_topic').value)
         self.frame_id = str(self.get_parameter('frame_id').value)
         self.path_topic = str(self.get_parameter('path_topic').value)
         self.marker_topic = str(self.get_parameter('marker_topic').value)
+        self.heading_marker_topic = str(self.get_parameter('heading_marker_topic').value)
 
         self.publish_hz = float(self.get_parameter('publish_hz').value)
 
@@ -86,6 +94,12 @@ class CmdVelPathVisualizer(Node):
         self.color_g = float(self.get_parameter('color_g').value)
         self.color_b = float(self.get_parameter('color_b').value)
         self.color_a = float(self.get_parameter('color_a').value)
+        self.heading_length = float(self.get_parameter('heading_length').value)
+        self.heading_width = float(self.get_parameter('heading_width').value)
+        self.heading_r = float(self.get_parameter('heading_r').value)
+        self.heading_g = float(self.get_parameter('heading_g').value)
+        self.heading_b = float(self.get_parameter('heading_b').value)
+        self.heading_a = float(self.get_parameter('heading_a').value)
 
         # ---- pubs/subs ----
         self.sub_cmd = self.create_subscription(Twist, self.cmd_vel_topic, self.cb_cmd, 20)
@@ -93,6 +107,7 @@ class CmdVelPathVisualizer(Node):
 
         self.pub_path = self.create_publisher(Path, self.path_topic, 10)
         self.pub_marker = self.create_publisher(Marker, self.marker_topic, 10)
+        self.pub_heading = self.create_publisher(Marker, self.heading_marker_topic, 10)
 
         # ---- state ----
         self.enabled = False
@@ -107,6 +122,7 @@ class CmdVelPathVisualizer(Node):
         self.path_msg.header.frame_id = self.frame_id
 
         self.marker_msg = self._make_marker_template()
+        self.heading_marker_msg = self._make_heading_marker_template()
 
         self.pub_cycle = 0
 
@@ -118,7 +134,7 @@ class CmdVelPathVisualizer(Node):
             f"CmdVelPathVisualizer ready. cmd_vel={self.cmd_vel_topic} enable={self.enable_topic}"
         )
         self.get_logger().info(
-            f"Publishing: Path={self.path_topic}, Marker={self.marker_topic} (frame_id={self.frame_id})"
+            f"Publishing: Path={self.path_topic}, Marker={self.marker_topic}, Heading={self.heading_marker_topic} (frame_id={self.frame_id})"
         )
 
     def _make_marker_template(self) -> Marker:
@@ -134,6 +150,23 @@ class CmdVelPathVisualizer(Node):
         m.color.g = float(self.color_g)
         m.color.b = float(self.color_b)
         m.color.a = float(self.color_a)
+        m.lifetime.sec = 0
+        m.lifetime.nanosec = 0
+        return m
+
+    def _make_heading_marker_template(self) -> Marker:
+        m = Marker()
+        m.header.frame_id = self.frame_id
+        m.ns = 'cmd_vel_heading'
+        m.id = 1
+        m.type = Marker.LINE_LIST
+        m.action = Marker.ADD
+        m.pose.orientation.w = 1.0
+        m.scale.x = float(self.heading_width)
+        m.color.r = float(self.heading_r)
+        m.color.g = float(self.heading_g)
+        m.color.b = float(self.heading_b)
+        m.color.a = float(self.heading_a)
         m.lifetime.sec = 0
         m.lifetime.nanosec = 0
         return m
@@ -165,6 +198,9 @@ class CmdVelPathVisualizer(Node):
 
         self.marker_msg = self._make_marker_template()
         self.marker_msg.points.clear()
+
+        self.heading_marker_msg = self._make_heading_marker_template()
+        self.heading_marker_msg.points.clear()
 
         self.pub_cycle = 0
 
@@ -224,6 +260,22 @@ class CmdVelPathVisualizer(Node):
         if len(self.marker_msg.points) > self.max_points:
             self.marker_msg.points.pop(0)
 
+        # heading line: two points forming a small segment in yaw direction
+        hx = self.x + self.heading_length * math.cos(self.yaw)
+        hy = self.y + self.heading_length * math.sin(self.yaw)
+        p0 = Point()
+        p0.x = float(self.x)
+        p0.y = float(self.y)
+        p0.z = 0.0
+        p1 = Point()
+        p1.x = float(hx)
+        p1.y = float(hy)
+        p1.z = 0.0
+        self.heading_marker_msg.points.append(p0)
+        self.heading_marker_msg.points.append(p1)
+        if len(self.heading_marker_msg.points) > 2 * self.max_points:
+            self.heading_marker_msg.points = self.heading_marker_msg.points[2:]
+
     def on_publish_timer(self) -> None:
         # publish even if disabled (to keep RViz visible), but do not append points unless enabled
         stamp = self.get_clock().now().to_msg()
@@ -235,9 +287,11 @@ class CmdVelPathVisualizer(Node):
 
         self.path_msg.header.stamp = stamp
         self.marker_msg.header.stamp = stamp
+        self.heading_marker_msg.header.stamp = stamp
 
         self.pub_path.publish(self.path_msg)
         self.pub_marker.publish(self.marker_msg)
+        self.pub_heading.publish(self.heading_marker_msg)
 
 
 def main() -> None:

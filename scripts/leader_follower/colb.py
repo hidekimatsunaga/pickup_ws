@@ -4,6 +4,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
+import sys
+import os
 
 # =========================
 # パラメータ
@@ -156,9 +158,12 @@ def step(frame):
 
 anim = FuncAnimation(fig, step, frames=TOTAL_FRAMES, init_func=init, blit=True)
 
-gif_path = "ftl_fixed_length_manipulator.gif"
+# 出力ディレクトリを確保
+output_dir = os.path.dirname(os.path.abspath(__file__))
+gif_path = os.path.join(output_dir, "ftl_fixed_length_manipulator.gif")
+
 anim.save(gif_path, writer=PillowWriter(fps=FPS))
 plt.close(fig)
 
-display(Image(filename=gif_path))
-print("Saved:", gif_path)
+print(f"Saved: {gif_path}")
+print("Animation completed successfully!")
