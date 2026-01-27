@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-"""Leader-follower visualization for a continuum manipulator (signed bend propagation).
-
-ユーザ定義のリーダーフォロワー（先端→根元へ伝播）を、
-"曲率が時間遅れで根元側へ伝わる" という形で簡易モデル化します。
-
-ポイント:
-- 1本のマニピュレータ（2Dバックボーン）
-- 先端が出す「曲げ角」入力 $\theta_{tip}(t)$（符号付き）が、速度 c で根元側へ伝播
-    $\theta(s,t) = \theta_{tip}(t - (L-s)/c) \cdot (s/L)$
-- $\theta(s,t)$ をそのまま接線角として積分して形状 (x(s), y(s)) を生成
-    → 断面ごとに遅れが入るので「追従している感」が出やすい
-- 折り返し（符号反転）も自然に伝播
-- GIF保存して、その後に表示まで同一スクリプトで完結
-
-物理的に厳密なCosseratロッドではなく、視覚化用のトイモデルです。
-"""
+"""蛇みたいな波状の動きをするリーダーフォロワー可視化."""
 
 from __future__ import annotations
 
@@ -30,8 +15,8 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib import font_manager
 
 try:
-    from PIL import Image  # pillow
-except Exception as exc:  # pragma: no cover
+    from PIL import Image
+except Exception as exc:
     raise SystemExit(
         "Pillow が必要です。`pip install pillow matplotlib numpy` を実行してください。"
     ) from exc
@@ -48,21 +33,32 @@ class SimParams:
     n_steps: int = 80
 
     # Leader input: tip bend angle (signed)
-    theta_amp: float = 0.5  # [rad]  (bigger -> larger swing and curvature)
-    theta_w: float = 2.0 * math.pi * 0.35
+    # 蛇みたいな波状にするため、高周波数・小振幅
+    theta_amp: float = 0.2  # [rad] 波の振幅を少し大きく
+    theta_w: float = 2.0 * math.pi * 0.3  # 周波数を下げてより大きな波に
 
     # Propagation (tip -> base)
-    propagation_speed: float = 0.8  # [length/s], bigger -> faster propagation
-    time_smoothing: float = 0.45  # 0..1, larger -> more responsive
-    space_smoothing: float = 0.12  # 0..1, smaller -> allows sharper bends
+    propagation_speed: float = 0.7  # 伝播速度を少し遅く
+    time_smoothing: float = 0.3  # より反応的に
+    space_smoothing: float = 0.08  # 滑らかな蛇のような曲線に
 
     # Forward motion (entering from off-screen)
-    forward_speed: float = 0.25  # [length/s], speed of forward motion
-    forward_direction: tuple[float, float] = (1.0, 0.0)  # direction vector (will be normalized)
+    forward_speed: float = 0.3  # 前進速度を遅く
+
+    # Obstacle
+    obstacle_enabled: bool = True  # 障害物のオンオフ
+    obstacle_x: float = 0.7  # 障害物のx座標
+    obstacle_y: float = 0.0  # 障害物のy座標（少し下にズラして回避可能に）
+    obstacle_radius: float = 0.11  # 障害物の半径
+
+    # Target (garbage)
+    target_x: float = 1.0  # ゴミのx座標（障害物の先）
+    target_y: float = 0.0  # ゴミのy座標
+    target_radius: float = 0.08  # ゴミの半径
 
     # Rendering
     fps: int = 20
-    gif_name: str = "leader_follower_curvature_wave.gif"
+    gif_name: str = "leader_follower_snake_wave.gif"
     dpi: int = 180
     trail_len: int = 140
 
@@ -70,12 +66,12 @@ class SimParams:
     figsize: tuple[float, float] = (5.5, 4.5)
     use_japanese_labels: bool = True
     save_keyframe_png: bool = True
-    keyframe_index: int = 0  # overwritten to mid-step if 0
+    keyframe_index: int = 0
     show_numbers: bool = False
 
 
 def _set_slide_style(use_japanese: bool) -> None:
-    """Apply slide-friendly matplotlib defaults (fonts/linewidths/colors)."""
+    """Apply slide-friendly matplotlib defaults."""
     plt.rcParams.update(
         {
             "figure.facecolor": "white",
@@ -96,7 +92,6 @@ def _set_slide_style(use_japanese: bool) -> None:
     if not use_japanese:
         return
 
-    # Prefer common Japanese fonts if available (fallback-safe).
     candidates = [
         "Noto Sans CJK JP",
         "Noto Sans JP",
@@ -123,7 +118,6 @@ def _delayed_from_history(hist: np.ndarray, step: int, s: np.ndarray, p: SimPara
     c = max(1e-6, p.propagation_speed)
     dt = p.dt
 
-    # Delay is larger near the base.
     delays = (L - s) / c
     delay_steps = delays / dt
 
@@ -139,14 +133,15 @@ def _delayed_from_history(hist: np.ndarray, step: int, s: np.ndarray, p: SimPara
     return (1.0 - frac) * v0 + frac * v1
 
 
-def theta_to_backbone(theta: np.ndarray, p: SimParams) -> tuple[np.ndarray, np.ndarray]:
-    """Integrate tangent angle into a planar backbone curve (x(s), y(s)), base fixed."""
-    n = p.n_points
-    ds = p.length / (n - 1)
+def theta_to_backbone(theta: np.ndarray, p: SimParams, custom_n: int = None) -> tuple[np.ndarray, np.ndarray]:
+    """Integrate tangent angle into a planar backbone curve."""
+    n = custom_n if custom_n is not None else p.n_points
+    ds = p.length / (p.n_points - 1)  # Always use original spacing
     x = np.zeros(n, dtype=float)
     y = np.zeros(n, dtype=float)
-    x[1:] = np.cumsum(np.cos(theta[:-1])) * ds
-    y[1:] = np.cumsum(np.sin(theta[:-1])) * ds
+    if len(theta) > 0:
+        x[1:] = np.cumsum(np.cos(theta[:-1]) if len(theta) > 1 else []) * ds
+        y[1:] = np.cumsum(np.sin(theta[:-1]) if len(theta) > 1 else []) * ds
     return x, y
 
 
@@ -167,10 +162,9 @@ def simulate(p: SimParams) -> dict[str, np.ndarray]:
     theta_prev = np.zeros(n, dtype=float)
 
     # Forward motion offset
-    fwd_dir = np.array(p.forward_direction, dtype=float)
-    fwd_dir = fwd_dir / (np.linalg.norm(fwd_dir) + 1e-9)
+    fwd_dir = np.array([1.0, 0.0], dtype=float)
 
-    # Markers (4 points -> 3 sections)
+    # Markers
     marker_ids = np.array(
         [
             0,
@@ -182,42 +176,86 @@ def simulate(p: SimParams) -> dict[str, np.ndarray]:
     )
     marker_xy = np.zeros((p.n_steps, len(marker_ids), 2), dtype=float)
 
+    collision_step = None  # 衝突したステップを記録
+    reached_target = False  # ゴミに到達したか
+
     for step in range(p.n_steps):
         # Delayed tip angle for each cross-section
         th_delayed = _delayed_from_history(th_hist, step, s, p)
 
-        # Map to a backbone tangent-angle field.
         # Use delayed angle directly (equal magnitude throughout)
         theta_raw = th_delayed
 
-        # Time smoothing (first-order low-pass)
+        # Time smoothing
         a_t = float(np.clip(p.time_smoothing, 0.0, 1.0))
         theta_sm = (1.0 - a_t) * theta_prev + a_t * theta_raw
 
-        # Space smoothing (one Jacobi step on a Laplacian)
+        # Space smoothing - more aggressive for snake-like smoothness
         a_s = float(np.clip(p.space_smoothing, 0.0, 1.0))
         theta_new = theta_sm.copy()
         if a_s > 0.0:
-            lap = np.zeros_like(theta_new)
-            lap[1:-1] = theta_new[0:-2] - 2.0 * theta_new[1:-1] + theta_new[2:]
-            lap[0] = theta_new[1] - theta_new[0]
-            lap[-1] = theta_new[-2] - theta_new[-1]
-            theta_new = theta_new + a_s * lap
+            # Multiple smoothing iterations for smoother curves
+            for _ in range(2):
+                lap = np.zeros_like(theta_new)
+                lap[1:-1] = theta_new[0:-2] - 2.0 * theta_new[1:-1] + theta_new[2:]
+                lap[0] = theta_new[1] - theta_new[0]
+                lap[-1] = theta_new[-2] - theta_new[-1]
+                theta_new = theta_new + a_s * lap
 
         theta_prev = theta_new
         x, y = theta_to_backbone(theta_new, p)
 
-        # Apply forward motion offset (base starts off-screen)
-        # Shift time backward so root is initially off-screen
-        t_current = (step - 50) * p.dt
+        # Apply forward motion offset
+        t_current = (step - 60) * p.dt  # スタート位置をもっと左から（画面外から）
         offset = p.forward_speed * t_current * fwd_dir
         x = x + offset[0]
         y = y + offset[1]
+
+        # 衝突判定
+        if collision_step is None and p.obstacle_enabled:
+            for i in range(n):
+                dist = math.sqrt((x[i] - p.obstacle_x)**2 + (y[i] - p.obstacle_y)**2)
+                if dist < p.obstacle_radius:
+                    collision_step = step
+                    break
+
+        # ゴミへの到達判定（先端が届いたか）
+        if not reached_target:
+            tip_dist = math.sqrt((x[-1] - p.target_x)**2 + (y[-1] - p.target_y)**2)
+            if tip_dist < p.target_radius:
+                reached_target = True
 
         thetas[step] = theta_new
         xs[step] = x
         ys[step] = y
         marker_xy[step] = np.stack([x[marker_ids], y[marker_ids]], axis=-1)
+
+        # 衝突またはゴミ到達で停止
+        if collision_step is not None or reached_target:
+            break
+
+    # 衝突またはゴミ到達後、最後のフレームを残りに複製
+    if collision_step is not None:
+        for step in range(collision_step + 1, p.n_steps):
+            xs[step] = xs[collision_step]
+            ys[step] = ys[collision_step]
+            thetas[step] = thetas[collision_step]
+            marker_xy[step] = marker_xy[collision_step]
+    elif reached_target:
+        # ゴミに到達したステップを見つける
+        reached_step = None
+        for step in range(p.n_steps):
+            if np.any(xs[step]):
+                tip_dist = math.sqrt((xs[step, -1] - p.target_x)**2 + (ys[step, -1] - p.target_y)**2)
+                if tip_dist < p.target_radius:
+                    reached_step = step
+                    break
+        if reached_step is not None:
+            for step in range(reached_step + 1, p.n_steps):
+                xs[step] = xs[reached_step]
+                ys[step] = ys[reached_step]
+                thetas[step] = thetas[reached_step]
+                marker_xy[step] = marker_xy[reached_step]
 
     return {
         "s": s,
@@ -226,6 +264,8 @@ def simulate(p: SimParams) -> dict[str, np.ndarray]:
         "thetas": thetas,
         "marker_ids": marker_ids,
         "marker_xy": marker_xy,
+        "collision_step": collision_step,
+        "reached_target": reached_target,
     }
 
 
@@ -233,32 +273,21 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
     xs, ys = traj["xs"], traj["ys"]
     marker_ids = traj["marker_ids"]
     marker_xy = traj["marker_xy"]
+    reached_target = traj["reached_target"]
 
     _set_slide_style(p.use_japanese_labels)
     fig, ax = plt.subplots(figsize=p.figsize, constrained_layout=True)
     ax.set_aspect("equal", adjustable="box")
     ax.grid(False)
-    if p.use_japanese_labels:
-        ax.set_title("先端\u2192根元へ曲げが伝播するイメージ")
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-    else:
-        ax.set_title("Signed bend propagation (tip \u2192 base)")
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
+    ax.axis("off")  # グラフの軸を非表示
 
-    all_x = xs.reshape(-1)
-    all_y = ys.reshape(-1)
-    pad = 0.3
-    # Set fixed view to show entry from off-screen
     # Use only later steps to avoid including the root when off-screen
-    later_steps = xs[30:, :]  # Use frames from step 30 onward
+    later_steps = xs[30:, :]
     x_start = float(later_steps.min())
     x_end = float(later_steps.max())
-    y_min = float(later_steps.min() - pad)
-    y_max = float(ys[30:, :].max() + pad)
-    
-    # Extend left side to show initial off-screen position
+    y_min = float(later_steps.min() - 0.3)
+    y_max = float(ys[30:, :].max() + 0.3)
+
     x_min = x_start + 0.25
     x_max = x_end + 1.0
     ax.set_xlim(x_min, x_max)
@@ -277,7 +306,7 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
         marker_dots.append(dot)
         marker_trails.append(trail)
 
-    # Annotation: propagation direction
+    # Annotation
     if p.use_japanese_labels:
         ax.annotate(
             "伝播方向",
@@ -291,21 +320,51 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
             fontsize=11,
             color="#444444",
         )
-    else:
-        ax.annotate(
-            "Propagation",
-            xy=(0.78, 0.08),
-            xytext=(0.62, 0.08),
-            xycoords="axes fraction",
-            textcoords="axes fraction",
-            arrowprops={"arrowstyle": "->", "color": "#444444", "lw": 2.0},
-            ha="left",
-            va="center",
-            fontsize=11,
-            color="#444444",
-        )
 
     ax.legend(loc="upper left", frameon=True, framealpha=0.9, edgecolor="#dddddd")
+
+    # Draw obstacle
+    if p.obstacle_enabled:
+        obstacle_circle = plt.Circle(
+            (p.obstacle_x, p.obstacle_y),
+            p.obstacle_radius,
+            color="#ff0000",
+            alpha=0.6,
+            zorder=1
+        )
+        ax.add_patch(obstacle_circle)
+        
+        # Add text inside obstacle
+        obstacle_text = ax.text(
+            p.obstacle_x, p.obstacle_y,
+            "障害物" if p.use_japanese_labels else "Obstacle",
+            ha="center", va="center",
+            fontsize=7,
+            color="white",
+            fontweight="bold",
+            zorder=2
+        )
+
+    # Draw target (garbage)
+    target_circle = plt.Circle(
+        (p.target_x, p.target_y),
+        p.target_radius,
+        color="#ffa500" if not reached_target else "#00ff00",
+        alpha=0.7,
+        zorder=1
+    )
+    ax.add_patch(target_circle)
+    
+    # Add text inside target
+    target_text = ax.text(
+        p.target_x, p.target_y,
+        "ゴミ" if p.use_japanese_labels else "Target",
+        ha="center", va="center",
+        fontsize=6,
+        color="white",
+        fontweight="bold",
+        zorder=2
+    )
 
     def init():
         body_line.set_data([], [])
@@ -319,9 +378,13 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
 
     def update(i: int):
         body_line.set_data(xs[i], ys[i])
-        # Update base position (it moves forward)
         base_dot.set_data([xs[i, 0]], [ys[i, 0]])
 
+        # Check if target is reached at this frame
+        tip_dist = math.sqrt((xs[i, -1] - p.target_x)**2 + (ys[i, -1] - p.target_y)**2)
+        if tip_dist < p.target_radius:
+            target_circle.set_color("#00ff00")  # 到達時は緊色
+        
         trail_start = max(0, i + 1 - p.trail_len)
         for k in range(len(marker_ids)):
             marker_dots[k].set_data([marker_xy[i, k, 0]], [marker_xy[i, k, 1]])
@@ -347,7 +410,7 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     ani.save(out_path, writer=PillowWriter(fps=p.fps), dpi=p.dpi)
 
-    # Save a keyframe PNG for slides (static insert)
+    # Save keyframe PNG
     if p.save_keyframe_png:
         idx = p.keyframe_index
         if idx <= 0 or idx >= p.n_steps:
@@ -367,18 +430,12 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
 
 
 def display_saved_gif(gif_path: Path) -> None:
-    """Display the saved GIF.
-
-    Preference order:
-    1) Jupyter/VS Code notebook: inline via IPython.display
-    2) Desktop environment: open via xdg-open
-    3) Fallback: play frames in a Matplotlib window (if possible)
-    """
+    """Display the saved GIF."""
 
     try:
-        from IPython import get_ipython  # type: ignore
-        from IPython.display import Image as IPyImage  # type: ignore
-        from IPython.display import display  # type: ignore
+        from IPython import get_ipython
+        from IPython.display import Image as IPyImage
+        from IPython.display import display
 
         if get_ipython() is not None:
             display(IPyImage(filename=str(gif_path)))

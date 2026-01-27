@@ -73,7 +73,8 @@ class HolonomicFaceTarget(Node):
         self.declare_parameter('open_loop_start_yaw_rad', 0.0)
         self.declare_parameter('open_loop_blend_turn', True)
         self.declare_parameter('open_loop_wz_go_max', 10)
-
+        self.declare_parameter('open_loop_arc_angle_deg', 60.0)        
+        self.declare_parameter('open_loop_arc_direction', -1.0)  # -1.0=clockwise, 1.0=counter-clockwise
         self.target_x = float(self.get_parameter('target_x').value)
         self.target_y = float(self.get_parameter('target_y').value)
         self.stop_radius = float(self.get_parameter('stop_radius').value)
@@ -97,6 +98,8 @@ class HolonomicFaceTarget(Node):
         self.open_loop_start_yaw_rad = float(self.get_parameter('open_loop_start_yaw_rad').value)
         self.open_loop_blend_turn = bool(self.get_parameter('open_loop_blend_turn').value)
         self.open_loop_wz_go_max = float(self.get_parameter('open_loop_wz_go_max').value)
+        self.open_loop_arc_angle_deg = float(self.get_parameter('open_loop_arc_angle_deg').value)
+        self.open_loop_arc_direction = float(self.get_parameter('open_loop_arc_direction').value)
 
         odom_topic = str(self.get_parameter('odom_topic').value)
         enable_topic = str(self.get_parameter('enable_topic').value)
@@ -157,17 +160,17 @@ class HolonomicFaceTarget(Node):
                     # - Robot always faces target (radial direction)
                     # - Motion is tangential (perpendicular to radial = lateral in body frame)
                     # - vx=0, vy=v_tangential, wz proportional to arc
-                    arc_angle = math.radians(45.0)
+                    arc_angle = math.radians(self.open_loop_arc_angle_deg)
                     arc_length = r * arc_angle  # s = r*theta
                     
                     self.open_loop_go_time = arc_length / abs(self.open_loop_v)
                     # Tangential velocity in body frame: pure lateral (vy)
                     self.open_loop_go_vx = 0.0
-                    self.open_loop_go_vy = self.open_loop_v  # move sideways (tangential)
+                    self.open_loop_go_vy = self.open_loop_arc_direction * self.open_loop_v  # move sideways (tangential)
                     
                     # Angular velocity to complete arc_angle in go_time
                     if self.open_loop_go_time > 1e-6:
-                        self.open_loop_go_wz = -arc_angle / self.open_loop_go_time  # negative for clockwise
+                        self.open_loop_go_wz = -self.open_loop_arc_direction * arc_angle / self.open_loop_go_time
                     else:
                         self.open_loop_go_wz = 0.0
                         self.open_loop_go_vy = 0.0
