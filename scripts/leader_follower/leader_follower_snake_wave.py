@@ -34,27 +34,27 @@ class SimParams:
 
     # Leader input: tip bend angle (signed)
     # 蛇みたいな波状にするため、高周波数・小振幅
-    theta_amp: float = 0.2  # [rad] 波の振幅を少し大きく
-    theta_w: float = 2.0 * math.pi * 0.3  # 周波数を下げてより大きな波に
+    theta_amp: float = 0.6  # [rad] 先端の曲率を強くする
+    theta_w: float = 2.0 * math.pi * 0.45  # 高周波数で細かい波を作る
 
     # Propagation (tip -> base)
-    propagation_speed: float = 0.7  # 伝播速度を少し遅く
-    time_smoothing: float = 0.3  # より反応的に
-    space_smoothing: float = 0.08  # 滑らかな蛇のような曲線に
+    propagation_speed: float = 0.5  # 遅く -> 中腹が曲がった状態を保つ
+    time_smoothing: float = 0.25  # より反応的に
+    space_smoothing: float = 0.0  # より小さく -> 各セクションの曲率が大きくなる
 
     # Forward motion (entering from off-screen)
-    forward_speed: float = 0.3  # 前進速度を遅く
+    forward_speed: float = 0.4  # 前進速度
 
     # Obstacle
     obstacle_enabled: bool = True  # 障害物のオンオフ
-    obstacle_x: float = 0.7  # 障害物のx座標
+    obstacle_x: float = 0.9  # 障害物のx座標（より先に配置）
     obstacle_y: float = 0.0  # 障害物のy座標（少し下にズラして回避可能に）
-    obstacle_radius: float = 0.11  # 障害物の半径
+    obstacle_radius: float = 0.14  # 障害物の半径
 
     # Target (garbage)
-    target_x: float = 1.0  # ゴミのx座標（障害物の先）
+    target_x: float = 1.2  # ゴミのx座標（障害物の先）
     target_y: float = 0.0  # ゴミのy座標
-    target_radius: float = 0.08  # ゴミの半径
+    target_radius: float = 0.07  # ゴミの半径
 
     # Rendering
     fps: int = 20
@@ -206,7 +206,7 @@ def simulate(p: SimParams) -> dict[str, np.ndarray]:
         x, y = theta_to_backbone(theta_new, p)
 
         # Apply forward motion offset
-        t_current = (step - 60) * p.dt  # スタート位置をもっと左から（画面外から）
+        t_current = (step - 40) * p.dt
         offset = p.forward_speed * t_current * fwd_dir
         x = x + offset[0]
         y = y + offset[1]
@@ -296,7 +296,7 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
     (body_line,) = ax.plot([], [], color="#2ca02c", label=("マニピュレータ" if p.use_japanese_labels else "Manipulator"))
     (base_dot,) = ax.plot([], [], marker="o", color="#111111", ms=6, label=("根元" if p.use_japanese_labels else "Base"))
 
-    palette = ["#111111", "#9467bd", "#ff7f0e", "#1f77b4", "#8c564b"]
+    palette = ["#111111", "#9467bd", "#ff7f0e", "#2c4ba0", "#8c564b"]  # 先端を緑色に変更
     marker_colors = palette[: len(marker_ids)]
     marker_dots = []
     marker_trails = []
@@ -320,6 +320,11 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
             fontsize=11,
             color="#444444",
         )
+    
+    # Tip annotation (動的に更新)
+    tip_text = ax.text(0, 0, "先端", ha="center", va="bottom",
+                       fontsize=9, bbox=dict(boxstyle="round,pad=0.3", facecolor="#2c4ba0", alpha=0.8, edgecolor="none"),
+                       color="white", fontweight="bold", zorder=10)
 
     ax.legend(loc="upper left", frameon=True, framealpha=0.9, edgecolor="#dddddd")
 
@@ -368,10 +373,11 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
 
     def init():
         body_line.set_data([], [])
+        tip_text.set_visible(False)
         for dot, trail in zip(marker_dots, marker_trails, strict=True):
             dot.set_data([], [])
             trail.set_data([], [])
-        artists = [body_line, base_dot]
+        artists = [body_line, base_dot, tip_text]
         artists.extend(marker_dots)
         artists.extend(marker_trails)
         return tuple(artists)
@@ -379,6 +385,11 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
     def update(i: int):
         body_line.set_data(xs[i], ys[i])
         base_dot.set_data([xs[i, 0]], [ys[i, 0]])
+
+        # Update tip text position to follow the tip
+        tip_x, tip_y = xs[i, -1], ys[i, -1]
+        tip_text.set_position((tip_x, tip_y + 0.08))  # 先端の少し上に配置
+        tip_text.set_visible(True)
 
         # Check if target is reached at this frame
         tip_dist = math.sqrt((xs[i, -1] - p.target_x)**2 + (ys[i, -1] - p.target_y)**2)
@@ -393,7 +404,7 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
                 marker_xy[trail_start : i + 1, k, 1],
             )
 
-        artists = [body_line, base_dot]
+        artists = [body_line, base_dot, tip_text]
         artists.extend(marker_dots)
         artists.extend(marker_trails)
         return tuple(artists)
@@ -416,6 +427,8 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
         if idx <= 0 or idx >= p.n_steps:
             idx = p.n_steps // 2
         body_line.set_data(xs[idx], ys[idx])
+        tip_text.set_position((xs[idx, -1], ys[idx, -1] + 0.08))
+        tip_text.set_visible(True)
         trail_start = max(0, idx + 1 - p.trail_len)
         for k in range(len(marker_ids)):
             marker_dots[k].set_data([marker_xy[idx, k, 0]], [marker_xy[idx, k, 1]])
