@@ -293,7 +293,7 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
 
-    (body_line,) = ax.plot([], [], color="#2ca02c", label=("マニピュレータ" if p.use_japanese_labels else "Manipulator"))
+    (body_line,) = ax.plot([], [], color="#2ca02c", lw=8, label=("マニピュレータ" if p.use_japanese_labels else "Manipulator"))
     (base_dot,) = ax.plot([], [], marker="o", color="#111111", ms=6, label=("根元" if p.use_japanese_labels else "Base"))
 
     palette = ["#111111", "#9467bd", "#ff7f0e", "#2c4ba0", "#8c564b"]  # 先端を緑色に変更
@@ -301,8 +301,8 @@ def save_gif(traj: dict[str, np.ndarray], p: SimParams, out_path: Path) -> None:
     marker_dots = []
     marker_trails = []
     for c in marker_colors:
-        (dot,) = ax.plot([], [], marker="o", color=c, ms=5)
-        (trail,) = ax.plot([], [], lw=2.0, color=c, alpha=0.22)
+        (dot,) = ax.plot([], [], marker="o", color=c, ms=9.5)
+        (trail,) = ax.plot([], [], lw=5.0, color=c, alpha=0.12)
         marker_dots.append(dot)
         marker_trails.append(trail)
 
